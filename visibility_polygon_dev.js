@@ -5,6 +5,8 @@ This code is released into the public domain - attribution is appreciated but no
 Made by Byron Knoll.
 
 https://github.com/byronknoll/visibility-polygon-js
+*/
+/*
 Demo: http://www.byronknoll.com/visibility.html
 
 This library can be used to construct a visibility polygon for a set of line segments.
@@ -442,3 +444,7 @@ VisibilityPolygon.doLineSegmentsIntersect = function(x1, y1, x2, y2, x3, y3, x4,
          (d3 == 0 && VisibilityPolygon.isOnSegment(x1, y1, x2, y2, x3, y3)) ||
          (d4 == 0 && VisibilityPolygon.isOnSegment(x1, y1, x2, y2, x4, y4));
 };
+
+if(typeof module !== 'undefined' && module.exports) {
+  module.exports = VisibilityPolygon;
+}
