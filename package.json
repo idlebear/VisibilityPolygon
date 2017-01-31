@@ -4,7 +4,7 @@
   "description": "construct a visibility polygon for a set of line segments.",
   "main": "visibility_polygon.js",
   "scripts": {
-    "build": "uglifyjs visibility_polygon_dev.js --comments /visibility_polygon/ --mangle --compress -o visibility_polygon.js"
+    "build": "uglifyjs visibility_polygon_dev.js --comments /visibility_polygon/ --mangle --compress -o visibility_polygon.js --source-map visibility_polygon.js.map"
   },
   "repository": {
     "type": "git",
