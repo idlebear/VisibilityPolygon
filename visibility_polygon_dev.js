@@ -427,12 +427,33 @@ VisibilityPolygon.isOnSegment = function(xi, yi, xj, yj, xk, yk) {
 };
 
 VisibilityPolygon.computeDirection = function(xi, yi, xj, yj, xk, yk) {
-  a = (xk - xi) * (yj - yi);
-  b = (xj - xi) * (yk - yi);
+  var a = (xk - xi) * (yj - yi);
+  var b = (xj - xi) * (yk - yi);
   return a < b ? -1 : a > b ? 1 : 0;
 };
 
 VisibilityPolygon.doLineSegmentsIntersect = function(x1, y1, x2, y2, x3, y3, x4, y4) {
+	var s1_x = x2 - x1;
+	var s1_y = y2 - y1;
+	var s2_x = x4 - x3;
+	var s2_y = y4 - y3;
+
+	var denom = (-s2_x * s1_y + s1_x * s2_y);
+	if(denom === 0.0) {
+		return false;
+	}
+
+	var s = (-s1_y * (x1 - x3) + s1_x * (y1 - y3)) / denom;
+	if(s < 0 || s > 1) {
+		return false;
+	}
+
+	var t = (s2_x * (y1 - y3) - s2_y * (x1 - x3)) / denom;
+	return (t >= 0.0 && t <= 1.0);
+}
+
+/*
+VisibilityPolygon.doLineSegmentsIntersect  = function(x1, y1, x2, y2, x3, y3, x4, y4) {
   d1 = VisibilityPolygon.computeDirection(x3, y3, x4, y4, x1, y1);
   d2 = VisibilityPolygon.computeDirection(x3, y3, x4, y4, x2, y2);
   d3 = VisibilityPolygon.computeDirection(x1, y1, x2, y2, x3, y3);
@@ -444,6 +465,7 @@ VisibilityPolygon.doLineSegmentsIntersect = function(x1, y1, x2, y2, x3, y3, x4,
          (d3 == 0 && VisibilityPolygon.isOnSegment(x1, y1, x2, y2, x3, y3)) ||
          (d4 == 0 && VisibilityPolygon.isOnSegment(x1, y1, x2, y2, x4, y4));
 };
+*/
 
 if(typeof module !== 'undefined' && module.exports) {
   module.exports = VisibilityPolygon;
