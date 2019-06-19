@@ -5,6 +5,8 @@ This code is released into the public domain - attribution is appreciated but no
 Made by Byron Knoll.
 
 https://github.com/byronknoll/visibility-polygon-js
+*/
+/*
 Demo: http://www.byronknoll.com/visibility.html
 
 This library can be used to construct a visibility polygon for a set of line segments.
@@ -60,6 +62,8 @@ if (VisibilityPolygon.inPolygon(position, polygons[0])) {
 var viewportVisibility = VisibilityPolygon.computeViewport(position, segments, [50, 50], [450, 450]);
 
 */
+
+const VISIBILITYPOLYGON_EPSILON = 0.0000001;
 
 function VisibilityPolygon(){};
 
@@ -123,7 +127,7 @@ VisibilityPolygon.compute = function(position, segments) {
 			}
 			++i;
 			if (i == sorted.length) break;
-		} while (sorted[i][2] < sorted[orig][2] + VisibilityPolygon.epsilon());
+		} while (sorted[i][2] < sorted[orig][2] + VISIBILITYPOLYGON_EPSILON);
 
 		if (extend) {
 			polygon.push(vertex);
@@ -181,7 +185,7 @@ VisibilityPolygon.computeViewport = function(position, segments, viewportMinCorn
 			viewportSegments.push([[brokenSegments[i][0][0], brokenSegments[i][0][1]], [brokenSegments[i][1][0], brokenSegments[i][1][1]]]);
 		}
 	}
-	var eps = VisibilityPolygon.epsilon() * 10;
+	var eps = VISIBILITYPOLYGON_EPSILON * 10;
 	viewportSegments.push([[viewportMinCorner[0]-eps,viewportMinCorner[1]-eps],[viewportMaxCorner[0]+eps,viewportMinCorner[1]-eps]]);
 	viewportSegments.push([[viewportMaxCorner[0]+eps,viewportMinCorner[1]-eps],[viewportMaxCorner[0]+eps,viewportMaxCorner[1]+eps]]);
 	viewportSegments.push([[viewportMaxCorner[0]+eps,viewportMaxCorner[1]+eps],[viewportMinCorner[0]-eps,viewportMaxCorner[1]+eps]]);
@@ -190,10 +194,10 @@ VisibilityPolygon.computeViewport = function(position, segments, viewportMinCorn
 }
 
 VisibilityPolygon.inViewport = function(position, viewportMinCorner, viewportMaxCorner) {
-	if (position[0] < viewportMinCorner[0] - VisibilityPolygon.epsilon()) return false;
-	if (position[1] < viewportMinCorner[1] - VisibilityPolygon.epsilon()) return false;
-	if (position[0] > viewportMaxCorner[0] + VisibilityPolygon.epsilon()) return false;
-	if (position[1] > viewportMaxCorner[1] + VisibilityPolygon.epsilon()) return false;
+	if (position[0] < viewportMinCorner[0] - VISIBILITYPOLYGON_EPSILON) return false;
+	if (position[1] < viewportMinCorner[1] - VISIBILITYPOLYGON_EPSILON) return false;
+	if (position[0] > viewportMaxCorner[0] + VISIBILITYPOLYGON_EPSILON) return false;
+	if (position[1] > viewportMaxCorner[1] + VISIBILITYPOLYGON_EPSILON) return false;
 	return true;
 }
 
@@ -269,12 +273,8 @@ VisibilityPolygon.breakIntersections = function(segments) {
 	return output;
 };
 
-VisibilityPolygon.epsilon = function() {
-	return 0.0000001;
-};
-
 VisibilityPolygon.equal = function(a, b) {
-	if (Math.abs(a[0] - b[0]) < VisibilityPolygon.epsilon() && Math.abs(a[1] - b[1]) < VisibilityPolygon.epsilon()) return true;
+	if (Math.abs(a[0] - b[0]) < VISIBILITYPOLYGON_EPSILON && Math.abs(a[1] - b[1]) < VISIBILITYPOLYGON_EPSILON) return true;
 	return false;
 };
 
@@ -395,8 +395,10 @@ VisibilityPolygon.sortPoints = function(position, segments) {
 	return points;
 };
 
+const RAD_2_DEG = 180.0 / Math.PI;
+
 VisibilityPolygon.angle = function(a, b) {
-	return Math.atan2(b[1]-a[1], b[0]-a[0]) * 180 / Math.PI;
+	return Math.atan2(b[1]-a[1], b[0]-a[0]) * RAD_2_DEG;
 };
 
 VisibilityPolygon.intersectLines = function(a1, a2, b1, b2) {
@@ -419,18 +421,39 @@ VisibilityPolygon.distance = function(a, b) {
 	return dx*dx + dy*dy;
 };
 
+VisibilityPolygon.doLineSegmentsIntersect = function(x1, y1, x2, y2, x3, y3, x4, y4) {
+	var s1_x = x2 - x1;
+	var s1_y = y2 - y1;
+	var s2_x = x4 - x3;
+	var s2_y = y4 - y3;
+
+	var denom = (-s2_x * s1_y + s1_x * s2_y);
+	if(denom === 0.0) {
+		return false;
+	}
+
+	var s = (-s1_y * (x1 - x3) + s1_x * (y1 - y3)) / denom;
+	if(s < 0 || s > 1) {
+		return false;
+	}
+
+	var t = (s2_x * (y1 - y3) - s2_y * (x1 - x3)) / denom;
+	return (t >= 0.0 && t <= 1.0);
+}
+
+/*
 VisibilityPolygon.isOnSegment = function(xi, yi, xj, yj, xk, yk) {
   return (xi <= xk || xj <= xk) && (xk <= xi || xk <= xj) &&
          (yi <= yk || yj <= yk) && (yk <= yi || yk <= yj);
 };
 
 VisibilityPolygon.computeDirection = function(xi, yi, xj, yj, xk, yk) {
-  a = (xk - xi) * (yj - yi);
-  b = (xj - xi) * (yk - yi);
+  var a = (xk - xi) * (yj - yi);
+  var b = (xj - xi) * (yk - yi);
   return a < b ? -1 : a > b ? 1 : 0;
 };
 
-VisibilityPolygon.doLineSegmentsIntersect = function(x1, y1, x2, y2, x3, y3, x4, y4) {
+VisibilityPolygon.doLineSegmentsIntersect  = function(x1, y1, x2, y2, x3, y3, x4, y4) {
   d1 = VisibilityPolygon.computeDirection(x3, y3, x4, y4, x1, y1);
   d2 = VisibilityPolygon.computeDirection(x3, y3, x4, y4, x2, y2);
   d3 = VisibilityPolygon.computeDirection(x1, y1, x2, y2, x3, y3);
@@ -442,3 +465,8 @@ VisibilityPolygon.doLineSegmentsIntersect = function(x1, y1, x2, y2, x3, y3, x4,
          (d3 == 0 && VisibilityPolygon.isOnSegment(x1, y1, x2, y2, x3, y3)) ||
          (d4 == 0 && VisibilityPolygon.isOnSegment(x1, y1, x2, y2, x4, y4));
 };
+*/
+
+if(typeof module !== 'undefined' && module.exports) {
+  module.exports = VisibilityPolygon;
+}

@@ -1,0 +1,22 @@
+{
+  "name": "visibility-polygon-js",
+  "version": "1.9.0",
+  "description": "construct a visibility polygon for a set of line segments.",
+  "main": "visibility_polygon.js",
+  "scripts": {
+    "build": "uglifyjs visibility_polygon_dev.js --comments /visibility_polygon/ --mangle --compress -o visibility_polygon.js --source-map visibility_polygon.js.map"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/byronknoll/visibility-polygon-js.git"
+  },
+  "author": "Byron Knoll",
+  "license": "Unlicense",
+  "bugs": {
+    "url": "https://github.com/byronknoll/visibility-polygon-js/issues"
+  },
+  "homepage": "https://github.com/byronknoll/visibility-polygon-js#readme",
+  "devDependencies": {
+    "uglify-js": "^2.7.5"
+  }
+}
