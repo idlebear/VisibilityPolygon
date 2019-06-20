@@ -21,6 +21,104 @@ namespace Visibility {
 
     const VISIBILITYPOLYGON_EPSILON = 0.0000001;
 
+    
+    class Point {
+    public:
+        Point( Vector2d& pt ) : pt( pt ) = default;
+        
+        virtual ~Point() {
+        }
+
+        double&
+        operator[]( std::size_t i ) {
+            assert( i == 0 || i == 1 );
+            return pts[i];
+        }
+
+        Point&
+        operator-=( const Point& rhs ) {
+            pt -= rhs.pt;
+            return *this;
+        }
+    
+        Point&
+        operator+=( const Point& rhs ) {
+            pt -= rhs.pt;
+            return *this;
+        }
+        
+        double squaredDistanceTo( const Point& other ) {
+            double dx = pt[0]-other[0];
+            double dy = pt[1]-other[1];
+            return dx*dx + dy*dy;
+        };
+
+        double distanceTo( const Point& other ) {
+            return (pt - other.pt).norm();
+        }
+
+    private:
+        Vector2d pt;
+    }
+
+    bool operator==( const Point& p1, const Point& p2 ) {
+        return p1.distanceTo( p2 ) < VISIBILITYPOLYGON_EPSILON;
+    }
+    
+    Point
+    operator-( Point lhs, const Point& rhs ) {
+        return Point( lhs.pt - rhs.pt );
+    }
+    
+    Point
+    operator+( Point lhs, const Point& rhs ) {
+        return Point( lhs.pt + rhs.pt );
+    }
+    
+
+    
+    class Line {
+    public:
+        Line( Point& pt1, Point& pt2 ) : pts( p1, p2 ) = default;
+
+        Vector2d&
+        operator[]( std::size_t i ) {
+            assert( i == 0 || i == 1 );
+            return pts[i];
+        }
+        
+    private:
+        vector<Point> pts;
+        
+    }
+    
+    bool operator==( const Line& l1, const Line& l2 ) {
+        return (l1[0] == l2[0]) && (l1[1] == l2[1]);
+    }
+    
+
+    class Polygon {
+    public:
+        Polygon( vector<Point>& pts ) : pts( pts ) = default;
+        Polygon() : pts() = default;
+        Polygon( Point& pt1, Point& pt2, Point& pt3, Point& pt4  ) : pts( p1, p2, p3, p4 )  = default;
+        
+        Vector2d&
+        operator[]( std::size_t i ) {
+            assert( i < pts.size() );
+            return pts[i];
+        }
+        
+        Polygon&
+        operator+( const Point& pt ) {
+            // TODO: Add the point to the polygon, then sort the list (again)
+        }
+        
+    private:
+        vector<Point> pts;
+        
+    }
+
     class VisibilityPolygon {
 
         VisibilityPolygon() {
@@ -32,14 +130,14 @@ namespace Visibility {
         }
 
 
-        segment2d compute( Vector2d position, vector<segment2d>segments) {
-          vector<segment2d> bounded();
+        segment2d compute( Point& position, vector<Line>& segments) {
+          vector<Line> bounded();
           auto minX = position[0];
           auto minY = position[1];
           auto maxX = position[0];
           auto maxY = position[1];
-          for( auto&& segment : segments ) {
-            for( auto&& vertex : segment ) {
+          for( auto const& segment : segments ) {
+            for( auto const& vertex : segment ) {
               minX = min(minX, vertex[0]);
               minY = min(minY, vertex[1]);
               maxX = max(maxX, vertex[0]);
@@ -53,36 +151,20 @@ namespace Visibility {
           ++maxX;
           ++maxY;
 
-          segment2d v(2);
-          v[0] = Vector2d(minX, minY);
-          v[1] = Vector2d(maxX, minY);
-          bounded.push( v );
-          v[0] = Vector2d(maxX, minY);
-          v[1] = Vector2d(maxX, maxY);
-          bounded.push( v );
-          v[0] = Vector2d(maxX, maxY);
-          v[1] = Vector2d(minX, maxY);
-          bounded.push( v );
-          v[0] = Vector2d(minX, maxY);
-          v[1] = Vector2d(minX, minY);
-          bounded.push( v );
+          bounded.push( Line( Point( minX, minY ), Point( maxX, minY ) ) );
+          bounded.push( Line( Point( maxX, minY ), Point( maxX, maxY ) ) );
+            bounded.push( Line( Point( maxX, maxY ), Point( minX, maxY ) ) );
+            bounded.push( Line( Point( minX, maxY ), Point( minX, minY ) ) );
 
-
-          segment2d polygon();
+          Polygon polygon();
           auto sorted = sortPoints( position, bounded );
-          auto map = Array( bounded.size() );
-
-          for ( auto it = map.begin(); it != map.end(); ++it ) {
-            *it = -1;
-          }
-
 
           segment2d heap();
           make_heap( heap.begin(), heap.end() );
           auto start = Vector2d( position[0] + 1, position[1] );
 
           int i = 0;
-          for ( auto&& segment: bounded ) {
+          for ( auto const& segment: bounded ) {
             auto a1 = angle(segment[0], position);
             auto a2 = angle(segment[1], position);
             bool active = false;
@@ -269,13 +351,6 @@ namespace Visibility {
           return output;
         };
 
-        bool equal( const Vector2d& a, const Vector2d& b) {
-          if( (a - b).norm() < VISIBILITYPOLYGON_EPSILON ) {
-            return true;
-          }
-          return false;
-        };
-
         void
         remove( int index, vector<segment2d>& heap, const Vector2d& position, vector<vector<Vector2d>>& segments, destination, map) {
           map[heap[index]] = -1;
@@ -344,18 +419,19 @@ namespace Visibility {
           }
         };
 
-        bool lessThan( const segment2d& s1, const segment2d& s2, position, destination) {
-          auto inter1 = intersectLines( s1, position, destination);
-          auto inter2 = intersectLines( s2, position, destination);
-          if (!equal(inter1, inter2)) {
+        bool lessThan( const Line& s1, const Line& s2, const Point& position, const Point& destination) {
+            Line destLine = Line( position, destination );
+            auto inter1 = intersectLines( s1, destLine );
+          auto inter2 = intersectLines( s2, destLine );
+          if ( inter1 != inter2 ) {
             return (inter1 - position).norm() < (inter2 - position).norm();
           }
           int end1 = 0;
-          if (equal(inter1, s1[0])) {
+          if( inter1 == s1[0] ) {
             end1 = 1;
           }
           var end2 = 0;
-          if (equal(inter2, s2[0])) {
+          if( inter2 == s2[0] ) {
             end2 = 1;
           }
           var a1 = angle2(s1[end1], inter1, position);
@@ -369,22 +445,22 @@ namespace Visibility {
           return a1 < a2;
         };
 
-        double angle2( const Vector2d& a, const Vector2d& b, const Vector2d& c) {
+        double angle2( const Point& a, const Point& b, const Point& c) {
           auto res = angle(a,b) - angle(b,c);
           if( res < 0 ) {
             res += 2 * M_PI;
           } else if( res > 2 * M_PI ) {
             res -= 2 * M_PI;
           }
-          return a;
+          return res;
         };
 
-        vector<Vector2d> sortPoints( const Vector2d& position, const vector<segment2d> segments) {
+        vector<vector<double>> sortPoints( const Point& position, const vector<Line>& segments) {
           auto points = vector<vector<double>>( segments.size() * 2 );
           for( int i = 0; i < segments.size(); ++i ) {
             for( int j = 0; j < 2; ++j) {
-              auto a = angle(segments[i][j], position);
-              points[2*i+j] = [i, j, a];
+              double a = angle(segments[i][j], position);
+              points[2*i+j] = vector<double>(i, j, a);
             }
           }
           sort( points.begin(), points.end(), []( const vector<double>& a, const vector<double>&b ) {
@@ -393,46 +469,38 @@ namespace Visibility {
           return points;
         };
 
-        double angle( const Vector2d& a, const Vector2d& b) {
+        double angle( const Point& a, const Point& b) {
           return atan2( b[1]-a[1], b[0]-a[0]);
         };
 
-        Vector2d intersectLines( const segment2d& a, const segment2d& b ) {
+        Point intersectLines( const Line& a, const Line& b ) {
           auto db = b[1] - b[0];
           auto da = a[1] - a[0];
 
           auto u_b  = db[1] * da[0] - db[0] * da[1];
           if (u_b != 0) {
-            Vector2d dab = a[1] - b[1];
+            Point dab = a[1] - b[1];
             auto ua = (db[0] * dab[1] - db[1] * dab[0]) / u_b;
             return a[1] - (ua * -da);
           }
           return Vector2d( NAN, NAN );
         };
 
-        VisibilityPolygon.distance = function(a, b) {
-          var dx = a[0]-b[0];
-          var dy = a[1]-b[1];
-          return dx*dx + dy*dy;
-        };
+      bool doLineSegmentsIntersect( const Line& l1, const Line& l2 ) {
+          Point s1 = l1[1] - l1[2];
+          Point s2 = l2[1] - l2[2];
 
-        VisibilityPolygon.doLineSegmentsIntersect = function(x1, y1, x2, y2, x3, y3, x4, y4) {
-          var s1_x = x2 - x1;
-          var s1_y = y2 - y1;
-          var s2_x = x4 - x3;
-          var s2_y = y4 - y3;
-
-          var denom = (-s2_x * s1_y + s1_x * s2_y);
+          double denom = (-s2[0] * s1[1] + s1[0] * s2[1]);
           if(denom === 0.0) {
             return false;
           }
 
-          var s = (-s1_y * (x1 - x3) + s1_x * (y1 - y3)) / denom;
-          if(s < 0 || s > 1) {
+          Point tmp = l1[0] - l2[0];
+          double s = (-s1[1] * (tmp[0]) + s1[0] * (tmp[1])) / denom;
+          if(s < 0.0 || s > 1.0) {
             return false;
           }
-
-          var t = (s2_x * (y1 - y3) - s2_y * (x1 - x3)) / denom;
+          var t = (s2[0] * (tmp[1]) - s2[1] * (tmp[0])) / denom;
           return (t >= 0.0 && t <= 1.0);
         }
 
