@@ -4,31 +4,11 @@ project(visibility-polygon)
 ## Compile as C++11, supported in ROS Kinetic and newer
 add_compile_options(-std=c++11)
 
-## Find catkin macros and libraries
-## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
-## is used, also find other catkin packages
-find_package(catkin REQUIRED)
-
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
 
 find_package(Eigen3 REQUIRED)
 
-###################################
-## catkin specific configuration ##
-###################################
-## The catkin_package macro generates cmake config files for your package
-## Declare things to be passed to dependent projects
-## INCLUDE_DIRS: uncomment this if your package contains header files
-## LIBRARIES: libraries you create in this project that dependent projects also need
-## CATKIN_DEPENDS: catkin_packages dependent projects also need
-## DEPENDS: system dependencies of this project that dependent projects also need
-catkin_package(
-  INCLUDE_DIRS include
-  LIBRARIES ob1
-#  CATKIN_DEPENDS other_catkin_pkg
-#  DEPENDS system_lib
-)
 
 ###########
 ## Build ##
@@ -41,15 +21,16 @@ include_directories(
     ${EIGEN3_INCLUDE_DIRS}
 )
 
+SET(visibility-polygon_LIBRARY_OUTPUT_DIRECTORY ${visibility-polygon_SOURCE_DIR}/lib CACHE PATH "Target for the libraries")
+SET(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${visibility-polygon_LIBRARY_OUTPUT_DIRECTORY})
+SET(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${visibility-polygon_LIBRARY_OUTPUT_DIRECTORY})
+SET(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${visibility-polygon_RUNTIME_OUTPUT_DIRECTORY})
+
 ## Declare a C++ library
 add_library(${PROJECT_NAME}
    src/VisibilityPolygon.cpp
 )
 
-## Add cmake target dependencies of the library
-## as an example, code may need to be generated before libraries
-## either from message generation or dynamic reconfigure
-# add_dependencies(${PROJECT_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(${PROJECT_NAME}
@@ -71,11 +52,11 @@ target_link_libraries(${PROJECT_NAME}
 # )
 
 ## Mark executables and/or libraries for installation
-# install(TARGETS ${PROJECT_NAME} ${PROJECT_NAME}_node
+install(TARGETS ${PROJECT_NAME}
 #   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-#   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+        LIBRARY DESTINATION
 #   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-# )
+)
 
 ## Mark cpp header files for installation
 # install(DIRECTORY include/${PROJECT_NAME}/
@@ -83,6 +64,8 @@ target_link_libraries(${PROJECT_NAME}
 #   FILES_MATCHING PATTERN "*.h"
 #   PATTERN ".svn" EXCLUDE
 # )
+INSTALL(DIRECTORY ${PROJECT_NAME} DESTINATION ${CMAKE_INSTALL_PREFIX}/include
+        FILES_MATCHING PATTERN "*.h" )
 
 ## Mark other files for installation (e.g. launch and bag files, etc.)
 # install(FILES
@@ -90,6 +73,9 @@ target_link_libraries(${PROJECT_NAME}
 #   # myfile2
 #   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
 # )
+
+
+
 
 #############
 ## Testing ##

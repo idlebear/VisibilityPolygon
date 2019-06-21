@@ -11,6 +11,7 @@
 #include <array>
 #include <cmath>
 #include <algorithm>
+#include <memory>
 
 using namespace std;
 using namespace Eigen;
@@ -66,20 +67,24 @@ namespace Visibility {
         Vector2d pt;
     };
 
+    inline
     bool operator==(const Point &p1, const Point &p2) {
       return p1.distanceTo(p2) < VISIBILITYPOLYGON_EPSILON;
     };
 
+    inline
     bool operator!=(const Point &p1, const Point &p2) {
       return !(p1 == p2);
     };
 
+    inline
     Point
     operator-(Point lhs, const Point &rhs) {
       lhs -= rhs;
       return lhs;
     };
 
+    inline
     Point
     operator+(Point lhs, const Point &rhs) {
       lhs += rhs;
@@ -102,15 +107,33 @@ namespace Visibility {
           return pts[i];
         };
 
+        Point
+        intersectWith( const Line& other ) const throw( int ) {
+            auto db = other[1] - other[0];
+            auto da = pts[1] - pts[0];
+
+            auto u_b = db[1] * da[0] - db[0] * da[1];
+            if( u_b == 0) {
+              throw -1;
+            }
+            Point dab = pts[1] - other[1];
+            auto ua = -(db[0] * dab[1] - db[1] * dab[0]) / u_b;
+            da[0] *= ua;
+            da[1] *= ua;
+            return pts[1] + da;
+        }
+
     private:
         vector <Point> pts;
 
     };
 
+    inline
     bool operator==(const Line &l1, const Line &l2) {
       return (l1[0] == l2[0]) && (l1[1] == l2[1]);
     };
 
+    inline
     bool operator!=(const Line &l1, const Line &l2) {
       return !(l1 == l2);
     };
@@ -177,7 +200,7 @@ namespace Visibility {
 
         Polygon &
         operator+=(const Point &pt) {
-          // TODO: Add the point to the polygon, then sort the list (again)
+          // TODO: After adding the point, we have to decide whether to sort the list (again)
           pts.emplace_back(pt);
         };
 
@@ -186,37 +209,8 @@ namespace Visibility {
           return pts.size();
         }
 
-        bool
-        contains(const Point &position) {
-
-          double val = pts[0][0];
-          for (auto const &pt: pts) {
-            val = min(pt[0], val);
-            val = min(pt[1], val);
-          }
-          Point edge(val - 1, val - 1);
-          int parity = 0;
-          for (int i = 0; i < pts.size(); ++i) {
-            int j = (i + 1) % pts.size();
-
-            auto l1 = Line(edge, position);
-            auto l2 = Line(pts[i], pts[j]);
-            if (doLineSegmentsIntersect(l1, l2)) {
-              Point intersect = intersectLines(l1, l2);
-              if (position == intersect) {
-                return true;
-              }
-              if ((intersect == pts[i] &&
-                   angle2(position, edge, pts[j]) >= M_PI) ||
-                  (intersect == pts[j] &&
-                   angle2(position, edge, pts[i]) >= M_PI)) {
-                continue;
-              }
-              ++parity;
-            }
-          }
-          return parity % 2 != 0;
-        }
+        bool contains(const Point &position) const;
+        vector<Line> toSegments() const;
 
     private:
         vector<Point> pts;
@@ -229,9 +223,6 @@ namespace Visibility {
     Polygon
     computeViewport(const Point &position, const vector<Line> &segments, const Point &viewportMinCorner,
                     const Point &viewportMaxCorner);
-
-    vector<Line>
-    convertToSegments(const vector<Polygon> &polygons);
 
     vector<Line>
     breakIntersections(const vector<Line> &segments);
@@ -247,11 +238,11 @@ namespace Visibility {
     };
 
     void remove(int index, vector<int> heap, const Point &position, const vector<Line> &segments,
-                const Point &destination, int map[]);
+                const Point &destination, vector<int>& map);
 
     void
     insert(int index, vector<int> heap, const Point &position, const vector<Line> &segments, const Point &destination,
-           int map[]);
+           vector<int>& map);
 
     bool lessThan(int i1, int i2, const Point &position, const vector<Line> &segments, const Point &destination);
 
