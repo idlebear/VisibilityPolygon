@@ -27,7 +27,7 @@ SET(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${visibility-polygon_LIBRARY_OUTPUT_DIRECTORY
 SET(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${visibility-polygon_RUNTIME_OUTPUT_DIRECTORY})
 
 ## Declare a C++ library
-add_library(${PROJECT_NAME}
+add_library(${PROJECT_NAME} SHARED
    src/VisibilityPolygon.cpp
 )
 

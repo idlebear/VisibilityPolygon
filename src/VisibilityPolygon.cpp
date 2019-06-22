@@ -270,7 +270,7 @@ namespace Visibility {
       return output;
     };
 
-    void remove( int index, vector<int> heap, const Point& position, const vector<Line>& segments,
+    void remove( int index, vector<int>& heap, const Point& position, const vector<Line>& segments,
                  const Point& destination, vector<int>& map ) {
       map[heap[index]] = -1;
       if (index == heap.size() - 1) {
@@ -322,7 +322,7 @@ namespace Visibility {
     }
 
     void
-    insert(int index, vector<int> heap, const Point &position, const vector <Line> &segments, const Point &destination,
+    insert(int index, vector<int>& heap, const Point &position, const vector <Line> &segments, const Point &destination,
            vector<int>& map) {
       try {
         Point intersect = segments[index].intersectWith( Line( position, destination ) );
@@ -383,15 +383,17 @@ namespace Visibility {
 
 
     vector <PointIndex> sortPoints(const Point &position, const vector <Line> &segments) {
-      vector < PointIndex > points(segments.size() * 2);
+      vector < PointIndex > points;
+      points.reserve(segments.size() * 2);
+
       for (int i = 0; i < segments.size(); ++i) {
         for (int j = 0; j < 2; ++j) {
           double a = angle(segments[i][j], position);
-          points[2 * i + j] = PointIndex{i, j, a};
+          points.emplace_back( PointIndex{i, j, a} );
         }
       }
-      sort(points.begin(), points.end(), [](const PointIndex &a, const PointIndex &b) {
-          return a.a - b.a;
+      sort(points.begin(), points.end(), [](const PointIndex& a, const PointIndex& b) {
+          return a.a < b.a;
       });
       return points;
     };
@@ -414,5 +416,19 @@ namespace Visibility {
       return (t >= 0.0 && t <= 1.0);
     }
 
+    vector<Line>
+    convertToSegments( const vector<Polygon>& polygons ) {
+        vector<Line> combinedSegments;
+
+        for( auto const& poly: polygons ) {
+            auto segments = poly.toSegments();
+            combinedSegments.insert(
+                combinedSegments.end(),
+                std::make_move_iterator(segments.begin()),
+                std::make_move_iterator(segments.end())
+            );
+        }
+        return combinedSegments;
+    }
 
 }
