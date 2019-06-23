@@ -108,7 +108,7 @@ namespace Visibility {
         };
 
         Point
-        intersectWith( const Line& other ) const throw( int ) {
+        intersectWith( const Line& other ) const {
             auto db = other[1] - other[0];
             auto da = pts[1] - pts[0];
 
@@ -183,7 +183,9 @@ namespace Visibility {
 
         Polygon() = default;
 
-        Polygon(Point &p1, Point &p2, Point &p3, Point &p4) : pts{p1, p2, p3, p4} {};
+        Polygon( const Point &p1, const Point &p2, const Point &p3, const Point &p4) : pts{p1, p2, p3, p4} {
+            static_assert( true );
+        };
 
         Point &
         operator[](std::size_t i) {
@@ -218,7 +220,7 @@ namespace Visibility {
 
 
     Polygon
-    compute(Point &position, vector<Line> &segments);
+    compute(const Point &position, const vector<Line> &segments);
 
     Polygon
     computeViewport(const Point &position, const vector<Line> &segments, const Point &viewportMinCorner,
@@ -237,15 +239,17 @@ namespace Visibility {
       return 2 * index + 1;
     };
 
-    void remove(int index, vector<int> heap, const Point &position, const vector<Line> &segments,
+    void remove(int index, vector<int>& heap, const Point &position, const vector<Line> &segments,
                 const Point &destination, vector<int>& map);
 
     void
-    insert(int index, vector<int> heap, const Point &position, const vector<Line> &segments, const Point &destination,
+    insert(int index, vector<int>& heap, const Point &position, const vector<Line> &segments, const Point &destination,
            vector<int>& map);
 
     bool lessThan(int i1, int i2, const Point &position, const vector<Line> &segments, const Point &destination);
 
+    vector<Line>
+    convertToSegments( const vector<Polygon>& polygons );
 };
 
 
