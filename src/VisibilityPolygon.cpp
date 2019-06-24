@@ -402,17 +402,17 @@ namespace Visibility {
       Point s1 = l1[1] - l1[0];
       Point s2 = l2[1] - l2[0];
 
-      double denom = (-s2[0] * s1[1] + s1[0] * s2[1]);
+      double denom = s1[0] * s2[1] - s2[0] * s1[1];
       if (denom == 0.0) {
         return false;
       }
 
       Point tmp = l1[0] - l2[0];
-      double s = (-s1[1] * (tmp[0]) + s1[0] * (tmp[1])) / denom;
+      double s = (s1[0] * tmp[1] - s1[1] * tmp[0]) / denom;
       if (s < 0.0 || s > 1.0) {
         return false;
       }
-      double t = (s2[0] * (tmp[1]) - s2[1] * (tmp[0])) / denom;
+      double t = (s2[0] * tmp[1] - s2[1] * tmp[0]) / denom;
       return (t >= 0.0 && t <= 1.0);
     }
 

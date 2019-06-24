@@ -5,6 +5,7 @@
 #ifndef OB1_VISIBILITYPOLYGON_H
 #define OB1_VISIBILITYPOLYGON_H
 
+#include <limits>
 #include <Eigen/Dense>
 
 #include <vector>
@@ -53,6 +54,18 @@ namespace Visibility {
           return *this;
         };
 
+        Point &
+        operator*=( double scale ) {
+            pt *= scale;
+            return *this;
+        };
+
+        Point &
+        operator/=( double scale ) {
+            pt /= scale ;
+            return *this;
+        };
+
         double squaredDistanceTo(const Point &other) const {
           double dx = pt[0] - other[0];
           double dy = pt[1] - other[1];
@@ -91,6 +104,20 @@ namespace Visibility {
       return lhs;
     }
 
+    inline
+    Point
+    operator*(Point lhs, double rhs) {
+        lhs *= rhs;
+        return lhs;
+    }
+
+    inline
+    Point
+    operator/(Point lhs, double rhs) {
+        lhs /= rhs;
+        return lhs;
+    }
+
     class Line {
     public:
         Line(const Point &p1, const Point &p2) : pts{p1, p2} {};
@@ -114,12 +141,11 @@ namespace Visibility {
 
             auto u_b = db[1] * da[0] - db[0] * da[1];
             if( u_b == 0) {
-              throw -1;
+              throw out_of_range;
             }
             Point dab = pts[1] - other[1];
-            auto ua = -(db[0] * dab[1] - db[1] * dab[0]) / u_b;
-            da[0] *= ua;
-            da[1] *= ua;
+            auto ua = (db[1] * dab[0] - db[0] * dab[1]) / u_b;
+            da *= ua;
             return pts[1] + da;
         }
 
@@ -179,36 +205,101 @@ namespace Visibility {
 
     class Polygon {
     public:
-        explicit Polygon(vector<Point> &pts) : pts(pts) {};
+        explicit Polygon(vector<Point> &pts) : pts(pts), centre(findCenter()) {
+        }
 
-        Polygon() = default;
+        Polygon() : pts(), centre(Point(0, 0)) {
+        }
 
-        Polygon( const Point &p1, const Point &p2, const Point &p3, const Point &p4) : pts{p1, p2, p3, p4} {
-            static_assert( true );
-        };
+        Polygon(const Point &p1, const Point &p2, const Point &p3, const Point &p4) : pts{p1, p2, p3, p4},
+                                                                                      centre(findCenter()) {
+        }
+
+        virtual ~Polygon() = default;
 
         Point &
         operator[](std::size_t i) {
-          assert(i < pts.size());
-          return pts[i];
-        };
+            assert(i < pts.size());
+            return pts[i];
+        }
 
         const Point &
         operator[](std::size_t i) const {
-          assert(i < pts.size());
-          return pts[i];
-        };
-
+            assert(i < pts.size());
+            return pts[i];
+        }
 
         Polygon &
         operator+=(const Point &pt) {
-          // TODO: After adding the point, we have to decide whether to sort the list (again)
-          pts.emplace_back(pt);
-        };
+            // TODO: After adding the point, we have to decide whether to sort the list (again)
+            pts.emplace_back(pt);
+        }
 
         size_t
         size() const {
-          return pts.size();
+            return pts.size();
+        }
+
+        Point
+        findCenter() const {
+            Point centre(0, 0);
+            for (auto const &pt: pts) {
+                centre += pt;
+            }
+            centre /= pts.size();
+
+            return centre;
+        }
+
+        Point
+        getCentre() const {
+            return centre;
+        }
+
+        Point
+        intersectWithSegment( const Line& segment ) const {
+            auto edges = toSegments();
+            for( auto const& edge: edges ) {
+
+                Point s1 = segment[1] - segment[0];
+                Point s2 = edge[1] - edge[0];
+
+                double denom = s1[0] * s2[1] - s2[0] * s1[1];
+                if (denom == 0.0) {
+                    continue;
+                }
+
+                Point tmp = segment[0] - edge[0];
+                double s = (s1[0] * tmp[1] - s1[1] * tmp[0]) / denom;
+                if (s < 0.0 || s > 1.0) {
+                    continue;
+                }
+                double t = (s2[0] * tmp[1] - s2[1] * tmp[0]) / denom;
+                if( t < 0.0 || t > 1.0) {
+                    continue;
+                }
+                return edge[1] + s1 * t;
+            }
+            throw out_of_range;  // no intersection...
+        }
+
+        double
+        distanceTo(const Point &pt) {
+            auto edges = toSegments();
+            double minDist = std::numeric_limits::infinity();
+
+            for (auto const &edge: edges) {
+                auto vec = edge[1] - edge[0];
+
+                // https://en.wikipedia.org/wiki/Distance_from_a_point_to_a_line
+                auto dist = (abs(vec[1] * pt[0] - vec[0] * pt[1] + edge[1][0] * edge[0][1]
+                                 - edge[1][1] * edge[0][0])
+                            ) / (edge[1].distanceTo(edge[0]));
+                if (dist < minDist) {
+                    minDist = dist;
+                }
+            }
+            return minDist;
         }
 
         bool contains(const Point &position) const;
@@ -216,6 +307,7 @@ namespace Visibility {
 
     private:
         vector<Point> pts;
+        Point centre;
     };
 
 
