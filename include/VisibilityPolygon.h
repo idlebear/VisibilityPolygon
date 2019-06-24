@@ -13,6 +13,7 @@
 #include <cmath>
 #include <algorithm>
 #include <memory>
+#include <stdexcept>
 
 using namespace std;
 using namespace Eigen;
@@ -141,7 +142,7 @@ namespace Visibility {
 
             auto u_b = db[1] * da[0] - db[0] * da[1];
             if( u_b == 0) {
-              throw out_of_range;
+              throw domain_error( "No intersection" );
             }
             Point dab = pts[1] - other[1];
             auto ua = (db[1] * dab[0] - db[0] * dab[1]) / u_b;
@@ -280,13 +281,13 @@ namespace Visibility {
                 }
                 return edge[1] + s1 * t;
             }
-            throw out_of_range;  // no intersection...
+            throw domain_error( "No intersection" );  // no intersection...
         }
 
         double
-        distanceTo(const Point &pt) {
+        distanceTo(const Point &pt) const {
             auto edges = toSegments();
-            double minDist = std::numeric_limits::infinity();
+            double minDist = std::numeric_limits<double>::infinity();
 
             for (auto const &edge: edges) {
                 auto vec = edge[1] - edge[0];
