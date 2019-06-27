@@ -234,6 +234,7 @@ namespace Visibility {
         operator+=(const Point &pt) {
             // TODO: After adding the point, we have to decide whether to sort the list (again)
             pts.emplace_back(pt);
+            return *this;
         }
 
         size_t
