@@ -8,7 +8,7 @@ add_compile_options(-std=c++11)
 # find_package(Boost REQUIRED COMPONENTS system)
 
 find_package(Eigen3 REQUIRED)
-
+find_package(Boost REQUIRED)
 
 ###########
 ## Build ##
@@ -19,6 +19,7 @@ find_package(Eigen3 REQUIRED)
 include_directories(
     include
     ${EIGEN3_INCLUDE_DIRS}
+    ${BOOST_INCLUDE_DIRS}
 )
 
 SET(visibility-polygon_LIBRARY_OUTPUT_DIRECTORY ${visibility-polygon_SOURCE_DIR}/lib CACHE PATH "Target for the libraries")
@@ -35,6 +36,7 @@ add_library(${PROJECT_NAME} SHARED
 ## Specify libraries to link a library or executable target against
 target_link_libraries(${PROJECT_NAME}
     ${EIGEN3_LIBRARIES}
+    ${BOOST_LIBRARIES}
 )
 
 #############

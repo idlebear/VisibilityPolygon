@@ -6,8 +6,6 @@
 #define OB1_VISIBILITYPOLYGON_H
 
 #include <limits>
-#include <Eigen/Dense>
-
 #include <vector>
 #include <array>
 #include <cmath>
@@ -15,185 +13,97 @@
 #include <memory>
 #include <stdexcept>
 
+#include <boost/geometry.hpp>
+#include <boost/geometry/geometries/geometries.hpp>
+#include <boost/geometry/core/coordinate_system.hpp>
+#include <boost/geometry/geometries/point_xy.hpp>
+
+#include <boost/geometry/algorithms/intersection.hpp>
+
+
 using namespace std;
-using namespace Eigen;
+namespace bg = boost::geometry;
 
 namespace Visibility {
 
-    const double VISIBILITYPOLYGON_EPSILON = 0.0000001;
+    const double VISIBILITY_POLYGON_EPSILON = 0.0000001;
 
-    class Point {
-        friend Point operator+( Point lhs, const Point& rhs );
-        friend Point operator-( Point lhs, const Point& rhs );
-
-    public:
-        explicit Point( const Vector2d &pt) : pt(pt) {};
-        Point( const double x, const double y ) : pt{ x, y } {};
-        virtual ~Point() {};
-
-        const double
-        operator[](int i) const {
-          assert(i == 0 || i == 1);
-          return pt[i];
-        };
-
-        double &
-        operator[](int i) {
-          assert(i == 0 || i == 1);
-          return pt[i];
-        };
-
-        Point &
-        operator-=(const Point &rhs) {
-          pt -= rhs.pt;
-          return *this;
-        };
-
-        Point &
-        operator+=(const Point &rhs) {
-          pt -= rhs.pt;
-          return *this;
-        };
-
-        Point &
-        operator*=( double scale ) {
-            pt *= scale;
-            return *this;
-        };
-
-        Point &
-        operator/=( double scale ) {
-            pt /= scale ;
-            return *this;
-        };
-
-        double squaredDistanceTo(const Point &other) const {
-          double dx = pt[0] - other[0];
-          double dy = pt[1] - other[1];
-          return dx * dx + dy * dy;
-        };
-
-        double distanceTo(const Point &other) const {
-          return (pt - other.pt).norm();
-        };
-
-    private:
-        Vector2d pt;
-    };
-
-    inline
-    bool operator==(const Point &p1, const Point &p2) {
-      return p1.distanceTo(p2) < VISIBILITYPOLYGON_EPSILON;
-    };
-
-    inline
-    bool operator!=(const Point &p1, const Point &p2) {
-      return !(p1 == p2);
-    };
-
-    inline
-    Point
-    operator-(Point lhs, const Point &rhs) {
-      lhs -= rhs;
-      return lhs;
-    };
-
-    inline
-    Point
-    operator+(Point lhs, const Point &rhs) {
-      lhs += rhs;
-      return lhs;
-    }
-
-    inline
-    Point
-    operator*(Point lhs, double rhs) {
-        lhs *= rhs;
-        return lhs;
-    }
-
-    inline
-    Point
-    operator/(Point lhs, double rhs) {
-        lhs /= rhs;
-        return lhs;
-    }
-
-    class Line {
-    public:
-        Line(const Point &p1, const Point &p2) : pts{p1, p2} {};
-
-        Point &
-        operator[](std::size_t i) {
-          assert(i == 0 || i == 1);
-          return pts[i];
-        };
-
-        const Point &
-        operator[](std::size_t i) const {
-          assert(i == 0 || i == 1);
-          return pts[i];
-        };
-
-        Point
-        intersectWith( const Line& other ) const {
-            auto db = other[1] - other[0];
-            auto da = pts[1] - pts[0];
-
-            auto u_b = db[1] * da[0] - db[0] * da[1];
-            if( u_b == 0) {
-              throw domain_error( "No intersection" );
-            }
-            Point dab = pts[1] - other[1];
-            auto ua = (db[1] * dab[0] - db[0] * dab[1]) / u_b;
-            da *= ua;
-            return pts[1] + da;
-        }
-
-    private:
-        vector <Point> pts;
-
-    };
-
-    inline
-    bool operator==(const Line &l1, const Line &l2) {
-      return (l1[0] == l2[0]) && (l1[1] == l2[1]);
-    };
-
-    inline
-    bool operator!=(const Line &l1, const Line &l2) {
-      return !(l1 == l2);
-    };
+    typedef bg::model::d2::point_xy<double, bg::cs::cartesian> Point;
+    typedef bg::model::polygon<Point, false, true> Polygon;
+    typedef bg::model::segment<Point> Segment;
 
     inline bool
     inViewport(const Point &position, const Point &viewportMinCorner, const Point &viewportMaxCorner) {
-      if (position[0] < viewportMinCorner[0] - VISIBILITYPOLYGON_EPSILON ||
-          position[1] < viewportMinCorner[1] - VISIBILITYPOLYGON_EPSILON ||
-          position[0] > viewportMaxCorner[0] + VISIBILITYPOLYGON_EPSILON ||
-          position[1] > viewportMaxCorner[1] + VISIBILITYPOLYGON_EPSILON) {
-        return false;
-      }
-      return true;
+        if (position.x() < viewportMinCorner.x() - VISIBILITY_POLYGON_EPSILON ||
+            position.y() < viewportMinCorner.y() - VISIBILITY_POLYGON_EPSILON ||
+            position.x() > viewportMaxCorner.x() + VISIBILITY_POLYGON_EPSILON ||
+            position.y() > viewportMaxCorner.y() + VISIBILITY_POLYGON_EPSILON) {
+            return false;
+        }
+        return true;
     }
 
+    inline bool
+    operator==( const Point& lhs, const Point& rhs ) {
+        return bg::distance( lhs, rhs ) < VISIBILITY_POLYGON_EPSILON;
+    }
 
-    typedef struct _PointIndex {
+    inline bool
+    operator!=( const Point& lhs, const Point& rhs ) {
+        return !( lhs == rhs );
+    }
+
+    vector<Point>
+    convertToPoints(const Segment &segment);
+
+    inline bool
+    doSegmentsIntersect( const Segment& s1, const Segment& s2 ) {
+        return bg::intersects( s1, s2 );
+    }
+
+    inline bool
+    intersectSegments( const Segment& s1, const Segment& s2, vector<Point>& res ) {
+        bg::intersection( s1, s2, res );
+        return !res.empty();
+    }
+
+    inline bool
+    intersectLines( const Segment& a, const Segment& b, Point& res ) {
+        auto aPts = convertToPoints(a);
+        auto bPts = convertToPoints(b);
+        auto dax = aPts[1].x() - aPts[0].x();
+        auto day = aPts[1].y() - aPts[0].y();
+        auto dbx = bPts[1].x() - bPts[0].x();
+        auto dby = bPts[1].y() - bPts[0].y();
+
+        auto u_b = dby * dax - dbx * day;
+        if( u_b == 0) {
+            return false;
+        }
+        auto dabx = aPts[1].x() - bPts[1].x();
+        auto daby = aPts[1].y() - bPts[1].y();
+        auto ua = (dby * dabx - dbx * daby)/u_b;
+        dax *= ua;
+        day *= ua;
+        res = Point( aPts[1].x() + dax, aPts[1].y() + day );
+        return true;
+    };
+
+    struct PointIndex {
         int i;
         int j;
         double a;
-    } PointIndex;
-
-    vector <PointIndex> sortPoints(const Point &position, const vector <Line> &segments);
-
-    Point intersectLines(const Line &a, const Line &b);
-    bool doLineSegmentsIntersect(const Line &l1, const Line &l2);
-
-    inline double angle(const Point &a, const Point &b) {
-      return atan2(b[1] - a[1], b[0] - a[0]);
     };
 
-    inline
-    double angle2(const Point &a, const Point &b, const Point &c) {
+    vector <PointIndex> sortPoints(const Point &position, const vector <Segment> &segments);
+
+    inline double
+    angle(const Point &a, const Point &b) {
+      return atan2(b.y() - a.y(), b.x() - a.x());
+    };
+
+    inline double
+    angle2(const Point &a, const Point &b, const Point &c) {
       auto res = angle(a, b) - angle(b, c);
       if (res < 0) {
         res += 2 * M_PI;
@@ -203,125 +113,37 @@ namespace Visibility {
       return res;
     };
 
+    inline bool
+    contains( const Polygon& poly, const Point& pt ) {
+        return bg::within( pt, poly );
+    }
 
-    class Polygon {
-    public:
-        explicit Polygon(vector<Point> &pts) : pts(pts), centre(findCenter()) {
-        }
+    vector<Segment>
+    convertToSegments( const vector<Polygon>& polygons );
 
-        Polygon() : pts(), centre(Point(0, 0)) {
-        }
-
-        Polygon(const Point &p1, const Point &p2, const Point &p3, const Point &p4) : pts{p1, p2, p3, p4},
-                                                                                      centre(findCenter()) {
-        }
-
-        virtual ~Polygon() = default;
-
-        Point &
-        operator[](std::size_t i) {
-            assert(i < pts.size());
-            return pts[i];
-        }
-
-        const Point &
-        operator[](std::size_t i) const {
-            assert(i < pts.size());
-            return pts[i];
-        }
-
-        Polygon &
-        operator+=(const Point &pt) {
-            // TODO: After adding the point, we have to decide whether to sort the list (again)
-            pts.emplace_back(pt);
-            return *this;
-        }
-
-        size_t
-        size() const {
-            return pts.size();
-        }
-
-        Point
-        findCenter() const {
-            Point centre(0, 0);
-            for (auto const &pt: pts) {
-                centre += pt;
-            }
-            centre /= pts.size();
-
-            return centre;
-        }
-
-        Point
-        getCentre() const {
-            return centre;
-        }
-
-        Point
-        intersectWithSegment( const Line& segment ) const {
-            auto edges = toSegments();
-            for( auto const& edge: edges ) {
-
-                Point s1 = segment[1] - segment[0];
-                Point s2 = edge[1] - edge[0];
-
-                double denom = s1[0] * s2[1] - s2[0] * s1[1];
-                if (denom == 0.0) {
-                    continue;
-                }
-
-                Point tmp = segment[0] - edge[0];
-                double s = (s1[0] * tmp[1] - s1[1] * tmp[0]) / denom;
-                if (s < 0.0 || s > 1.0) {
-                    continue;
-                }
-                double t = (s2[0] * tmp[1] - s2[1] * tmp[0]) / denom;
-                if( t < 0.0 || t > 1.0) {
-                    continue;
-                }
-                return edge[1] + s1 * t;
-            }
-            throw domain_error( "No intersection" );  // no intersection...
-        }
-
-        double
-        distanceTo(const Point &pt) const {
-            auto edges = toSegments();
-            double minDist = std::numeric_limits<double>::infinity();
-
-            for (auto const &edge: edges) {
-                auto vec = edge[1] - edge[0];
-
-                // https://en.wikipedia.org/wiki/Distance_from_a_point_to_a_line
-                auto dist = (abs(vec[1] * pt[0] - vec[0] * pt[1] + edge[1][0] * edge[0][1]
-                                 - edge[1][1] * edge[0][0])
-                            ) / (edge[1].distanceTo(edge[0]));
-                if (dist < minDist) {
-                    minDist = dist;
-                }
-            }
-            return minDist;
-        }
-
-        bool contains(const Point &position) const;
-        vector<Line> toSegments() const;
-
-    private:
-        vector<Point> pts;
-        Point centre;
-    };
-
+    inline void
+    addPoint( Polygon& poly, const Point& pt ) {
+        bg::append( poly, pt );
+    }
 
     Polygon
-    compute(const Point &position, const vector<Line> &segments);
+    compute(const Point &position, const vector<Segment> &segments);
 
     Polygon
-    computeViewport(const Point &position, const vector<Line> &segments, const Point &viewportMinCorner,
+    computeViewport(const Point &position, const vector<Segment> &segments, const Point &viewportMinCorner,
                     const Point &viewportMaxCorner);
 
-    vector<Line>
-    breakIntersections(const vector<Line> &segments);
+    vector<Segment>
+    convertToSegments(const Polygon &poly);
+
+    vector<Segment>
+    convertToSegments(const vector<Polygon> &poly);
+
+    vector<Point>
+    convertToPoints(const Polygon &poly);
+
+    vector<Segment>
+    breakIntersections(const vector<Segment> &segments);
 
     inline
     int heapParent(int index) {
@@ -333,17 +155,15 @@ namespace Visibility {
       return 2 * index + 1;
     };
 
-    void remove(int index, vector<int>& heap, const Point &position, const vector<Line> &segments,
+    void remove(int index, vector<int>& heap, const Point &position, const vector<Segment> &segments,
                 const Point &destination, vector<int>& map);
 
     void
-    insert(int index, vector<int>& heap, const Point &position, const vector<Line> &segments, const Point &destination,
+    insert(int index, vector<int>& heap, const Point &position, const vector<Segment> &segments, const Point &destination,
            vector<int>& map);
 
-    bool lessThan(int i1, int i2, const Point &position, const vector<Line> &segments, const Point &destination);
+    bool lessThan(int i1, int i2, const Point &position, const vector<Segment> &segments, const Point &destination);
 
-    vector<Line>
-    convertToSegments( const vector<Polygon>& polygons );
 };
 
 
