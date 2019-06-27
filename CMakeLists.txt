@@ -54,7 +54,7 @@ target_link_libraries(${PROJECT_NAME}
 ## Mark executables and/or libraries for installation
 install(TARGETS ${PROJECT_NAME}
 #   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-        LIBRARY DESTINATION
+        LIBRARY DESTINATION lib
 #   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
