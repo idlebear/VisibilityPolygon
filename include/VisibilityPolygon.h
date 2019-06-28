@@ -26,12 +26,17 @@ namespace bg = boost::geometry;
 
 namespace Visibility {
 
+    // define a margin of error (horseshoes and hand grenades...)
     const double VISIBILITY_POLYGON_EPSILON = 0.0000001;
 
     typedef bg::model::d2::point_xy<double, bg::cs::cartesian> Point;
     typedef bg::model::polygon<Point, false, true> Polygon;
     typedef bg::model::segment<Point> Segment;
 
+    /////////////////////////////////
+    //
+    // Point operations
+    //
     inline bool
     inViewport(const Point &position, const Point &viewportMinCorner, const Point &viewportMaxCorner) {
         if (position.x() < viewportMinCorner.x() - VISIBILITY_POLYGON_EPSILON ||
@@ -53,6 +58,10 @@ namespace Visibility {
         return !( lhs == rhs );
     }
 
+    /////////////////////////////////
+    //
+    // Segment operations
+    //
     vector<Point>
     convertToPoints(const Segment &segment);
 
@@ -85,6 +94,13 @@ namespace Visibility {
         return true;
     };
 
+    vector<Segment>
+    breakIntersections(const vector<Segment> &segments);
+
+    /////////////////////////////////
+    //
+    // Polygon operations
+    //
     struct PointIndex {
         int i;
         int j;
@@ -117,6 +133,12 @@ namespace Visibility {
     vector<Segment>
     convertToSegments( const vector<Polygon>& polygons );
 
+    vector<Segment>
+    convertToSegments(const Polygon &poly);
+
+    vector<Point>
+    convertToExteriorPoints(const Polygon &poly);
+
     inline void
     addPoint( Polygon& poly, const Point& pt ) {
         bg::append( poly, pt );
@@ -134,17 +156,30 @@ namespace Visibility {
     computeViewport(const Point &position, const vector<Segment> &segments, const Point &viewportMinCorner,
                     const Point &viewportMaxCorner);
 
-    vector<Segment>
-    convertToSegments(const Polygon &poly);
+    //
+    // Intersect to polygons, returning the result (which may be empty...).  We're limiting the Boost interface
+    // a bit here by only accepting polygons, but for now, that's all we need...
+    inline vector<Polygon>
+    intersectPolygons( const Polygon& lhs, const Polygon& rhs ) {
+        vector<Polygon> res;
+        bg::intersection( lhs, rhs, res );
+        return res;
+    }
 
-    vector<Segment>
-    convertToSegments(const vector<Polygon> &poly);
+    inline vector<Polygon>
+    differencePolygons( const Polygon& lhs, const Polygon& rhs ) {
+        vector<Polygon> res;
+        bg::difference( lhs, rhs, res );
+        return res;
+    }
 
-    vector<Point>
-    convertToPoints(const Polygon &poly);
+    inline vector<Polygon>
+    unionPolygons( const Polygon& lhs, const Polygon& rhs ) {
+        vector<Polygon> res;
+        bg::union_( lhs, rhs, res );
+        return res;
+    }
 
-    vector<Segment>
-    breakIntersections(const vector<Segment> &segments);
 
     inline
     int heapParent(int index) {
