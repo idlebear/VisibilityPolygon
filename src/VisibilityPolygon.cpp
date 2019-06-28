@@ -145,28 +145,23 @@ namespace Visibility {
 
             if (extend) {
                 bg::append(polygon, vertex);
-                vector<Point> cur;
-                if (intersectSegments(bounded[heap[0]], Segment(position, vertex), cur)) {
-                    for (auto const &v: cur) {
-                        if( v == vertex ) {
-                            bg::append(polygon, v);
-                        }
+                Point cur;
+                if (intersectLines(bounded[heap[0]], Segment(position, vertex), cur)) {
+                    if( cur != vertex ) {
+                        bg::append(polygon, cur);
                     }
                 }
             } else if (shorten) {
-                vector<Point> intersections;
-                if (intersectSegments(bounded[old_segment], Segment(position, vertex), intersections)) {
-                    for( auto const& pt: intersections) {
-                        bg::append( polygon, pt );
-                    }
+                Point pt;
+                if (intersectLines(bounded[old_segment], Segment(position, vertex), pt)) {
+                    bg::append( polygon, pt );
                 }
-                if (intersectSegments(bounded[heap[0]], Segment(position, vertex), intersections)) {
-                    for( auto const& pt: intersections) {
-                        bg::append( polygon, pt );
-                    }
+                if (intersectLines(bounded[heap[0]], Segment(position, vertex), pt)) {
+                    bg::append( polygon, pt );
                 }
             }
         }
+        bg::correct(polygon);
         return polygon;
     }
 
@@ -255,82 +250,82 @@ namespace Visibility {
                     }
                 }
             }
-        Point start = pts[0];
-        while (!intersections.empty()) {
-          int endIndex = 0;
-          double endDis = bg::distance( start, intersections[0] );
-          for( int  j = 1; j < intersections.size(); ++j ) {
-            double dis = bg::distance( start, intersections[j] );
-            if( dis < endDis ) {
-              endDis = dis;
-              endIndex = j;
+            Point start = pts[0];
+            while (!intersections.empty()) {
+                int endIndex = 0;
+                double endDis = bg::distance(start, intersections[0]);
+                for (int j = 1; j < intersections.size(); ++j) {
+                    double dis = bg::distance(start, intersections[j]);
+                    if (dis < endDis) {
+                        endDis = dis;
+                        endIndex = j;
+                    }
+                }
+                output.emplace_back(Segment(start, intersections[endIndex]));
+                start = intersections[endIndex];
+                intersections.erase(intersections.begin() + endIndex);
             }
-          }
-          output.emplace_back( Segment( start, intersections[endIndex] ) );
-          start = intersections[endIndex];
-          intersections.erase(intersections.begin() + endIndex );
+            output.emplace_back(Segment(start, pts[1]));
         }
-        output.emplace_back( Segment( start, pts[1] ) );
-      }
-      return output;
+        return output;
     };
 
-    void remove( int index, vector<int>& heap, const Point& position, const vector<Segment>& segments,
-                 const Point& destination, vector<int>& map ) {
-      map[heap[index]] = -1;
-      if (index == heap.size() - 1) {
+    void remove(int index, vector<int> &heap, const Point &position, const vector<Segment> &segments,
+                const Point &destination, vector<int> &map) {
+        map[heap[index]] = -1;
+        if (index == heap.size() - 1) {
+            heap.pop_back();
+            return;
+        }
+        heap[index] = heap.back();
         heap.pop_back();
-        return;
-      }
-      heap[index] = heap.back();
-      heap.pop_back();
-      map[heap[index]] = index;
-      int cur = index;
-      int parent = heapParent(cur);
-      if (cur != 0 && lessThan(heap[cur], heap[parent], position, segments, destination)) {
-        while (cur > 0) {
-          parent = heapParent(cur);
-          if (!lessThan(heap[cur], heap[parent], position, segments, destination)) {
-            break;
-          }
-          map[heap[parent]] = cur;
-          map[heap[cur]] = parent;
-          int temp = heap[cur];
-          heap[cur] = heap[parent];
-          heap[parent] = temp;
-          cur = parent;
+        map[heap[index]] = index;
+        int cur = index;
+        int parent = heapParent(cur);
+        if (cur != 0 && lessThan(heap[cur], heap[parent], position, segments, destination)) {
+            while (cur > 0) {
+                parent = heapParent(cur);
+                if (!lessThan(heap[cur], heap[parent], position, segments, destination)) {
+                    break;
+                }
+                map[heap[parent]] = cur;
+                map[heap[cur]] = parent;
+                int temp = heap[cur];
+                heap[cur] = heap[parent];
+                heap[parent] = temp;
+                cur = parent;
+            }
+        } else {
+            while (true) {
+                int left = heapChild(cur);
+                int right = left + 1;
+                if (left < heap.size() && lessThan(heap[left], heap[cur], position, segments, destination) &&
+                    (right == heap.size() || lessThan(heap[left], heap[right], position, segments, destination))) {
+                    map[heap[left]] = cur;
+                    map[heap[cur]] = left;
+                    int temp = heap[left];
+                    heap[left] = heap[cur];
+                    heap[cur] = temp;
+                    cur = left;
+                } else if (right < heap.size() && lessThan(heap[right], heap[cur], position, segments, destination)) {
+                    map[heap[right]] = cur;
+                    map[heap[cur]] = right;
+                    int temp = heap[right];
+                    heap[right] = heap[cur];
+                    heap[cur] = temp;
+                    cur = right;
+                } else {
+                    break;
+                }
+            }
         }
-      } else {
-        while (true) {
-          int left = heapChild(cur);
-          int right = left + 1;
-          if (left < heap.size() && lessThan(heap[left], heap[cur], position, segments, destination) &&
-              (right == heap.size() || lessThan(heap[left], heap[right], position, segments, destination))) {
-            map[heap[left]] = cur;
-            map[heap[cur]] = left;
-            int temp = heap[left];
-            heap[left] = heap[cur];
-            heap[cur] = temp;
-            cur = left;
-          } else if (right < heap.size() && lessThan(heap[right], heap[cur], position, segments, destination)) {
-            map[heap[right]] = cur;
-            map[heap[cur]] = right;
-            int temp = heap[right];
-            heap[right] = heap[cur];
-            heap[cur] = temp;
-            cur = right;
-          } else {
-            break;
-          }
-        }
-      }
     }
 
     void
     insert(int index, vector<int> &heap, const Point &position, const vector<Segment> &segments,
            const Point &destination, vector<int> &map) {
         Point intersection;
-        if (intersectLines(segments[index], Segment(position, destination),intersection)) {
+        if (intersectLines(segments[index], Segment(position, destination), intersection)) {
             int cur = heap.size();
             heap.push_back(index);
             map[index] = cur;
@@ -355,16 +350,14 @@ namespace Visibility {
         Segment s2 = segments[i2];
 
         Segment destSegment = Segment(position, destination);
-        vector<Point> int1List;
-        if (!intersectSegments(s1, destSegment, int1List)) {
+        Point inter1;
+        if (!intersectLines(s1, destSegment, inter1)) {
             return false;
         }
-        vector<Point> int2List;
-        if (!intersectSegments(s2, destSegment, int2List)) {
+        Point inter2;
+        if (!intersectLines(s2, destSegment, inter2)) {
             return true;
         }
-        auto inter1 = int1List[0];
-        auto inter2 = int2List[0];
         if (inter1 != inter2) {
             return bg::distance(inter1, position) < bg::distance(inter2, position);
         }
@@ -390,7 +383,7 @@ namespace Visibility {
     }
 
 
-    vector <PointIndex> sortPoints(const Point &position, const vector<Segment> &segments) {
+    vector<PointIndex> sortPoints(const Point &position, const vector<Segment> &segments) {
         vector<PointIndex> points;
         points.reserve(segments.size() * 2);
 

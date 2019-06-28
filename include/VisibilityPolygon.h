@@ -71,6 +71,7 @@ namespace Visibility {
     intersectLines( const Segment& a, const Segment& b, Point& res ) {
         auto aPts = convertToPoints(a);
         auto bPts = convertToPoints(b);
+
         auto dax = aPts[1].x() - aPts[0].x();
         auto day = aPts[1].y() - aPts[0].y();
         auto dbx = bPts[1].x() - bPts[0].x();
@@ -82,7 +83,7 @@ namespace Visibility {
         }
         auto dabx = aPts[1].x() - bPts[1].x();
         auto daby = aPts[1].y() - bPts[1].y();
-        auto ua = (dby * dabx - dbx * daby)/u_b;
+        auto ua = (dbx * daby - dby * dabx)/u_b;
         dax *= ua;
         day *= ua;
         res = Point( aPts[1].x() + dax, aPts[1].y() + day );
@@ -124,6 +125,11 @@ namespace Visibility {
     inline void
     addPoint( Polygon& poly, const Point& pt ) {
         bg::append( poly, pt );
+    }
+
+    inline void
+    closePolygon( Polygon& poly ) {
+        bg::correct(poly);
     }
 
     Polygon
