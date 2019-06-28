@@ -26,14 +26,6 @@ namespace Visibility {
     }
 
     vector<Point>
-    convertToPoints( const Segment& segment ) {
-        vector<Point> res;
-        res.emplace_back( Point( bg::get<0,0>(segment), bg::get<0,1>(segment) ) );
-        res.emplace_back( Point( bg::get<1,0>(segment), bg::get<1,1>(segment) ) );
-        return res;
-    }
-
-    vector<Point>
     convertToPoints( const Polygon& poly ) {
         vector<Point> res;
 
@@ -59,6 +51,14 @@ namespace Visibility {
             );
         }
         return combinedSegments;
+    }
+
+    vector<Point>
+    convertToPoints( const Segment& segment ) {
+        vector<Point> res;
+        res.emplace_back( segment.first );
+        res.emplace_back( segment.second );
+        return res;
     }
 
 
@@ -102,9 +102,8 @@ namespace Visibility {
 
         int c = 0;
         for (auto const &segment: bounded) {
-            auto pts = convertToPoints( segment );
-            auto a1 = angle(pts[0], position);
-            auto a2 = angle(pts[1], position);
+            auto a1 = angle(segment.first, position);
+            auto a2 = angle(segment.second, position);
             bool active = false;
             if (a1 > -M_PI && a1 <= 0 && a2 <= M_PI && a2 >= 0 && a2 - a1 > M_PI) {
                 active = true;
@@ -122,13 +121,13 @@ namespace Visibility {
             bool extend = false;
             bool shorten = false;
             auto orig = i;
-            vertex = convertToPoints(bounded[sorted[i].i])[sorted[i].j];
+            vertex = sorted[i].j ? bounded[sorted[i].i].second : bounded[sorted[i].i].first;
             int old_segment = heap[0];
             do {
                 if (map[sorted[i].i] != -1) {
                     if (sorted[i].i == old_segment) {
                         extend = true;
-                        vertex = convertToPoints(bounded[sorted[i].i])[sorted[i].j];
+                        vertex = sorted[i].j ? bounded[sorted[i].i].second : bounded[sorted[i].i].first;
                     }
                     remove(map[sorted[i].i], heap, position, bounded, vertex, map);
                 } else {
@@ -175,11 +174,10 @@ namespace Visibility {
                            Point(viewportMinCorner.x(), viewportMaxCorner.y())};
 
         for (auto const &segment: segments) {
-            auto pts = convertToPoints( segment );
-            if (pts[0].x() < viewportMinCorner.x() && pts[1].x() < viewportMinCorner.x()) { continue; }
-            if (pts[0].y() < viewportMinCorner.y() && pts[1].y() < viewportMinCorner.y()) { continue; }
-            if (pts[0].x() > viewportMaxCorner.x() && pts[1].x() > viewportMaxCorner.x()) { continue; }
-            if (pts[0].y() > viewportMaxCorner.y() && pts[1].y() > viewportMaxCorner.y()) { continue; }
+            if (segment.first.x() < viewportMinCorner.x() && segment.second.x() < viewportMinCorner.x()) { continue; }
+            if (segment.first.y() < viewportMinCorner.y() && segment.second.y() < viewportMinCorner.y()) { continue; }
+            if (segment.first.x() > viewportMaxCorner.x() && segment.second.x() > viewportMaxCorner.x()) { continue; }
+            if (segment.first.y() > viewportMaxCorner.y() && segment.second.y() > viewportMaxCorner.y()) { continue; }
 
             vector<Point> intersections;
             for (int j = 0; j < 4; ++j) {
@@ -187,14 +185,14 @@ namespace Visibility {
                 vector<Point> newInts;
                 if( intersectSegments(segment, Segment(viewport[j], viewport[k]), newInts)) {
                     for (auto const &intersect: newInts) {
-                        if (intersect != pts[0] && intersect != pts[1]) {
+                        if (intersect != segment.first && intersect != segment.second) {
                             intersections.push_back(intersect);
                         }
                     }
                 }
             }
 
-            Point start( pts[0] );
+            Point start( segment.first );
             while (!intersections.empty()) {
                 int endIndex = 0;
                 double endDis = bg::distance(start, intersections[0]);
@@ -209,14 +207,13 @@ namespace Visibility {
                 start = intersections[endIndex];
                 intersections.erase(intersections.begin() + endIndex);
             }
-            brokenSegments.emplace_back(Segment(start, pts[1]));
+            brokenSegments.emplace_back(Segment(start, segment.second));
         }
 
         vector<Segment> viewportSegments;
         for (auto const &segment : brokenSegments) {
-            auto pts = convertToPoints( segment );
-            if (inViewport(pts[0], viewportMinCorner, viewportMaxCorner) &&
-                inViewport(pts[1], viewportMinCorner, viewportMaxCorner)) {
+            if (inViewport(segment.first, viewportMinCorner, viewportMaxCorner) &&
+                inViewport(segment.second, viewportMinCorner, viewportMaxCorner)) {
                 viewportSegments.push_back(segment);
             }
         }
@@ -235,7 +232,6 @@ namespace Visibility {
     vector<Segment> breakIntersections(const vector<Segment> &segments) {
         vector<Segment> output;
         for (int i = 0; i < segments.size(); ++i) {
-            vector<Point> pts = convertToPoints(segments[i]);
             vector<Point> intersections;
             for (int j = 0; j < segments.size(); ++j) {
                 if (i == j) {
@@ -244,13 +240,13 @@ namespace Visibility {
                 vector<Point> newIntersections;
                 if (intersectSegments(segments[i], segments[j], newIntersections)) {
                     for (auto const &intersect: newIntersections) {
-                        if (intersect != pts[0] && intersect != pts[1]) {
+                        if (intersect != segments[i].first && intersect != segments[i].second) {
                             intersections.emplace_back(intersect);
                         }
                     }
                 }
             }
-            Point start = pts[0];
+            Point start = segments[i].first;
             while (!intersections.empty()) {
                 int endIndex = 0;
                 double endDis = bg::distance(start, intersections[0]);
@@ -265,7 +261,7 @@ namespace Visibility {
                 start = intersections[endIndex];
                 intersections.erase(intersections.begin() + endIndex);
             }
-            output.emplace_back(Segment(start, pts[1]));
+            output.emplace_back(Segment(start, segments[i].second));
         }
         return output;
     };
@@ -361,18 +357,16 @@ namespace Visibility {
         if (inter1 != inter2) {
             return bg::distance(inter1, position) < bg::distance(inter2, position);
         }
-        int end1 = 0;
-        auto s1pts = convertToPoints(s1);
-        if (inter1 == s1pts[0]) {
-            end1 = 1;
+        Point end1 = s1.first;
+        if (inter1 == s1.first) {
+            end1 = s1.second;
         }
-        int end2 = 0;
-        auto s2pts = convertToPoints(s2);
-        if (inter2 == s2pts[0]) {
-            end2 = 1;
+        Point end2 = s2.first;
+        if (inter2 == s2.first) {
+            end2 = s2.second;
         }
-        double a1 = angle2(s1pts[end1], inter1, position);
-        double a2 = angle2(s2pts[end2], inter2, position);
+        double a1 = angle2(end1, inter1, position);
+        double a2 = angle2(end2, inter2, position);
         if (a1 < M_PI) {
             if (a2 > M_PI) {
                 return true;

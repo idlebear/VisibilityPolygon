@@ -69,24 +69,19 @@ namespace Visibility {
 
     inline bool
     intersectLines( const Segment& a, const Segment& b, Point& res ) {
-        auto aPts = convertToPoints(a);
-        auto bPts = convertToPoints(b);
-
-        auto dax = aPts[1].x() - aPts[0].x();
-        auto day = aPts[1].y() - aPts[0].y();
-        auto dbx = bPts[1].x() - bPts[0].x();
-        auto dby = bPts[1].y() - bPts[0].y();
+        auto dax = a.second.x() - a.first.x();
+        auto day = a.second.y() - a.first.y();
+        auto dbx = b.second.x() - b.first.x();
+        auto dby = b.second.y() - b.first.y();
 
         auto u_b = dby * dax - dbx * day;
         if( u_b == 0) {
             return false;
         }
-        auto dabx = aPts[1].x() - bPts[1].x();
-        auto daby = aPts[1].y() - bPts[1].y();
+        auto dabx = a.second.x() - b.second.x();
+        auto daby = a.second.y() - b.second.y();
         auto ua = (dbx * daby - dby * dabx)/u_b;
-        dax *= ua;
-        day *= ua;
-        res = Point( aPts[1].x() + dax, aPts[1].y() + day );
+        res = Point( a.second.x() + dax * ua, a.second.y() + day * ua );
         return true;
     };
 
