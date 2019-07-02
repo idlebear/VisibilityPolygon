@@ -17,6 +17,7 @@
 #include <boost/geometry/geometries/geometries.hpp>
 #include <boost/geometry/core/coordinate_system.hpp>
 #include <boost/geometry/geometries/point_xy.hpp>
+#include <boost/geometry/multi/geometries/multi_polygon.hpp>
 
 #include <boost/geometry/algorithms/intersection.hpp>
 
@@ -32,6 +33,7 @@ namespace Visibility {
     typedef bg::model::d2::point_xy<double, bg::cs::cartesian> Point;
     typedef bg::model::polygon<Point, false, true> Polygon;
     typedef bg::model::segment<Point> Segment;
+    typedef bg::model::multi_polygon<Polygon> MultiPolygon;
 
     /////////////////////////////////
     //
@@ -125,6 +127,11 @@ namespace Visibility {
       return res;
     };
 
+    inline int
+    numPoints( const Polygon& poly )  {
+        return bg::num_points( poly );
+    }
+
     inline bool
     contains( const Polygon& poly, const Point& pt ) {
         return bg::within( pt, poly );
@@ -159,27 +166,41 @@ namespace Visibility {
     //
     // Intersect to polygons, returning the result (which may be empty...).  We're limiting the Boost interface
     // a bit here by only accepting polygons, but for now, that's all we need...
-    inline vector<Polygon>
+
+    inline MultiPolygon
     intersectPolygons( const Polygon& lhs, const Polygon& rhs ) {
-        vector<Polygon> res;
+        MultiPolygon res;
         bg::intersection( lhs, rhs, res );
         return res;
     }
 
-    inline vector<Polygon>
-    differencePolygons( const Polygon& lhs, const Polygon& rhs ) {
-        vector<Polygon> res;
+    inline MultiPolygon
+    intersectPolygons( const MultiPolygon& lhs, const Polygon& rhs ) {
+        MultiPolygon res;
+        bg::intersection( lhs, rhs, res );
+        return res;
+    }
+
+    inline MultiPolygon
+    differencePolygons( const MultiPolygon& lhs, const Polygon& rhs ) {
+        MultiPolygon res;
         bg::difference( lhs, rhs, res );
         return res;
     }
 
-    inline vector<Polygon>
-    unionPolygons( const Polygon& lhs, const Polygon& rhs ) {
-        vector<Polygon> res;
+    inline MultiPolygon
+    unionPolygons( const MultiPolygon& lhs, const Polygon& rhs ) {
+        MultiPolygon res;
         bg::union_( lhs, rhs, res );
         return res;
     }
 
+    inline MultiPolygon
+    unionPolygons( const MultiPolygon& lhs, const MultiPolygon& rhs ) {
+        MultiPolygon res;
+        bg::union_( lhs, rhs, res );
+        return res;
+    }
 
     inline
     int heapParent(int index) {

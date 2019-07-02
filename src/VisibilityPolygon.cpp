@@ -26,7 +26,7 @@ namespace Visibility {
     }
 
     vector<Point>
-    convertToPoints( const Polygon& poly ) {
+    convertToExteriorPoints( const Polygon& poly ) {
         vector<Point> res;
 
         for(auto it = boost::begin(bg::exterior_ring(poly)); it != boost::end(bg::exterior_ring(poly)); ++it) {
