@@ -11,11 +11,7 @@ namespace Visibility {
     vector<Segment>
     convertToSegments(const Polygon &poly) {
         vector<Segment> segments;
-        vector<Point> points;
-
-        for( auto const& point : bg::exterior_ring(poly) ) {
-            points.emplace_back(point);
-        }
+        vector<Point> points = convertToExteriorPoints( poly );
 
         auto n = points.size();
         for (int j = 0; j < n; ++j) {
@@ -29,11 +25,8 @@ namespace Visibility {
     convertToExteriorPoints( const Polygon& poly ) {
         vector<Point> res;
 
-        for(auto it = boost::begin(bg::exterior_ring(poly)); it != boost::end(bg::exterior_ring(poly)); ++it) {
-            double x = bg::get<0>(*it);
-            double y = bg::get<1>(*it);
-            //use the coordinates...
-            res.emplace_back( Point( x, y ) );
+        for( auto const& point : bg::exterior_ring(poly) ) {
+            res.emplace_back(point);
         }
         return res;
     }
@@ -59,6 +52,17 @@ namespace Visibility {
         res.emplace_back( segment.first );
         res.emplace_back( segment.second );
         return res;
+    }
+
+    vector<Segment>
+    convertToSegments(const PolyLine &line) {
+        vector<Segment> segments;
+
+        int n = line.size();
+        for( int i = 0; i < n-1; i++ ) {
+            segments.emplace_back(Segment(line[i], line[i+1]));
+        }
+        return segments;
     }
 
 

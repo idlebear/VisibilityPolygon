@@ -20,10 +20,12 @@
 #include <boost/geometry/multi/geometries/multi_polygon.hpp>
 
 #include <boost/geometry/algorithms/intersection.hpp>
-
+#include <boost/assign.hpp>
 
 using namespace std;
 namespace bg = boost::geometry;
+// Bring "+=" for a vector into scope
+using namespace boost::assign;
 
 namespace Visibility {
 
@@ -33,6 +35,7 @@ namespace Visibility {
     typedef bg::model::d2::point_xy<double, bg::cs::cartesian> Point;
     typedef bg::model::polygon<Point, false, true> Polygon;
     typedef bg::model::segment<Point> Segment;
+    typedef bg::model::linestring<Point> PolyLine;
     typedef bg::model::multi_polygon<Polygon> MultiPolygon;
 
     /////////////////////////////////
@@ -78,6 +81,11 @@ namespace Visibility {
         return !res.empty();
     }
 
+    inline double
+    length( const Segment& segment ) {
+        return bg::distance( segment.first, segment.second );
+    }
+
     inline bool
     intersectLines( const Segment& a, const Segment& b, Point& res ) {
         auto dax = a.second.x() - a.first.x();
@@ -98,6 +106,21 @@ namespace Visibility {
 
     vector<Segment>
     breakIntersections(const vector<Segment> &segments);
+
+
+    /////////////////////////////////
+    //
+    // Polyline operations
+    //
+    inline void
+    addPoint( PolyLine& line, const Point& point ) {
+        line += point;
+    }
+
+    inline vector<Segment>
+    convertToSegments( const PolyLine& line );
+
+
 
     /////////////////////////////////
     //
