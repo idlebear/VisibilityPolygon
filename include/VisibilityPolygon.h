@@ -117,10 +117,11 @@ namespace Visibility {
         line += point;
     }
 
-    inline vector<Segment>
+    vector<Segment>
     convertToSegments( const PolyLine& line );
 
-
+    MultiPolygon
+    expand(const PolyLine& line, double distance, int pointsPerCircle = 36 );
 
     /////////////////////////////////
     //
@@ -218,12 +219,17 @@ namespace Visibility {
         return res;
     }
 
+
     inline MultiPolygon
     unionPolygons( const MultiPolygon& lhs, const MultiPolygon& rhs ) {
         MultiPolygon res;
         bg::union_( lhs, rhs, res );
         return res;
     }
+
+    // TODO: fix these so we don't have a proliferation for every bloody type -- fine for prototyping, but ugly...
+    MultiPolygon
+    expand(const Polygon& line, double distance, int pointsPerCircle = 36);
 
     inline
     int heapParent(int index) {

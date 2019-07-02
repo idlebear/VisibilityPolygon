@@ -66,6 +66,42 @@ namespace Visibility {
     }
 
 
+    MultiPolygon
+    expand( const PolyLine& line, double distance, int pointsPerCircle  ) {
+        boost::geometry::strategy::buffer::distance_symmetric<double> distance_strategy(distance);
+        boost::geometry::strategy::buffer::join_round join_strategy(pointsPerCircle);
+        boost::geometry::strategy::buffer::end_flat end_strategy;
+        boost::geometry::strategy::buffer::point_square point_strategy;
+        boost::geometry::strategy::buffer::side_straight side_strategy;
+
+        // Create the buffer of a linestring
+        MultiPolygon result;
+        boost::geometry::buffer(line, result,
+                                distance_strategy, side_strategy,
+                                join_strategy, end_strategy, point_strategy);
+        return result;
+    }
+
+
+
+    MultiPolygon
+    expand( const Polygon& line, double distance, int pointsPerCircle ) {
+        boost::geometry::strategy::buffer::distance_symmetric<double> distance_strategy(distance);
+        boost::geometry::strategy::buffer::join_round join_strategy(pointsPerCircle);
+        boost::geometry::strategy::buffer::end_flat end_strategy;
+        boost::geometry::strategy::buffer::point_square point_strategy;
+        boost::geometry::strategy::buffer::side_straight side_strategy;
+
+        // Create the buffer of a linestring
+        MultiPolygon result;
+        boost::geometry::buffer(line, result,
+                                distance_strategy, side_strategy,
+                                join_strategy, end_strategy, point_strategy);
+        return result;
+    }
+
+
+
     Polygon
     compute(const Point &position, const vector<Segment> &segments) {
         vector<Segment> bounded;
