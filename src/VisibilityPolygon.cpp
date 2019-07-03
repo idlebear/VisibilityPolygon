@@ -31,21 +31,6 @@ namespace Visibility {
         return res;
     }
 
-    vector<Segment>
-    convertToSegments(const vector<Polygon> &polygons) {
-        vector<Segment> combinedSegments;
-
-        for (auto const &poly: polygons) {
-            auto segments = convertToSegments( poly );
-            combinedSegments.insert(
-                    combinedSegments.end(),
-                    std::make_move_iterator(segments.begin()),
-                    std::make_move_iterator(segments.end())
-            );
-        }
-        return combinedSegments;
-    }
-
     vector<Point>
     convertToPoints( const Segment& segment ) {
         vector<Point> res;

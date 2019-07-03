@@ -165,9 +165,6 @@ namespace Visibility {
     }
 
     vector<Segment>
-    convertToSegments( const vector<Polygon>& polygons );
-
-    vector<Segment>
     convertToSegments(const Polygon &poly);
 
     vector<Point>
