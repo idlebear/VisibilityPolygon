@@ -37,6 +37,7 @@ namespace Visibility {
     typedef bg::model::segment<Point> Segment;
     typedef bg::model::linestring<Point> PolyLine;
     typedef bg::model::multi_polygon<Polygon> MultiPolygon;
+    typedef bg::model::ring<Point> Ring;
 
     /////////////////////////////////
     //
@@ -62,6 +63,23 @@ namespace Visibility {
     operator!=( const Point& lhs, const Point& rhs ) {
         return !( lhs == rhs );
     }
+
+    inline double
+    angle(const Point &a, const Point &b) {
+        return atan2(b.y() - a.y(), b.x() - a.x());
+    };
+
+    inline double
+    angle2(const Point &a, const Point &b, const Point &c) {
+        auto res = angle(a, b) - angle(b, c);
+        if (res < 0) {
+            res += 2 * M_PI;
+        } else if (res > 2 * M_PI) {
+            res -= 2 * M_PI;
+        }
+        return res;
+    };
+
 
     /////////////////////////////////
     //
@@ -135,21 +153,6 @@ namespace Visibility {
 
     vector <PointIndex> sortPoints(const Point &position, const vector <Segment> &segments);
 
-    inline double
-    angle(const Point &a, const Point &b) {
-      return atan2(b.y() - a.y(), b.x() - a.x());
-    };
-
-    inline double
-    angle2(const Point &a, const Point &b, const Point &c) {
-      auto res = angle(a, b) - angle(b, c);
-      if (res < 0) {
-        res += 2 * M_PI;
-      } else if (res > 2 * M_PI) {
-        res -= 2 * M_PI;
-      }
-      return res;
-    };
 
     inline int
     numPoints( const Polygon& poly )  {
@@ -230,6 +233,11 @@ namespace Visibility {
     // TODO: fix these so we don't have a proliferation for every bloody type -- fine for prototyping, but ugly...
     MultiPolygon
     expand(const Polygon& line, double distance, int pointsPerCircle = 36);
+
+    inline bool
+    contains( const MultiPolygon& poly, const Point& pt ) {
+        return bg::within( pt, poly );
+    }
 
     inline
     int heapParent(int index) {
