@@ -38,6 +38,7 @@ namespace Visibility {
     typedef bg::model::linestring<Point> PolyLine;
     typedef bg::model::multi_polygon<Polygon> MultiPolygon;
     typedef bg::model::ring<Point> Ring;
+    typedef bg::model::box<Point> Box;
 
     /////////////////////////////////
     //
