@@ -20,6 +20,8 @@
 #include <boost/geometry/multi/geometries/multi_polygon.hpp>
 
 #include <boost/geometry/algorithms/intersection.hpp>
+
+#include <boost/math/special_functions/sign.hpp>
 #include <boost/assign.hpp>
 
 using namespace std;
@@ -127,6 +129,17 @@ namespace Visibility {
     breakIntersections(const vector<Segment> &segments);
 
 
+    inline int
+    side( const Segment& s, const Point& p ) {
+        auto dsx = s.second.x() - s.first.x();
+        auto dsy = s.second.y() - s.first.y();
+        auto dpx = p.x() - s.first.x();
+        auto dpy = p.y() - s.first.y();
+
+        return boost::math::sign( dpy * dsx - dpx * dsy );
+    }
+
+
     /////////////////////////////////
     //
     // Polyline operations
@@ -141,6 +154,26 @@ namespace Visibility {
 
     MultiPolygon
     expand(const PolyLine& line, double distance, int pointsPerCircle = 36 );
+
+    /////////////////////////////////
+    //
+    // Box operations
+    //
+
+    inline bool
+    contains( const Polygon& poly, const Box& box ) {
+        auto w = box.max_corner().x() - box.min_corner().x();
+        auto h = box.max_corner().x() - box.min_corner().x();
+
+        if( bg::within(box.min_corner(), poly) ||
+            bg::within(Point(box.min_corner().x(), box.min_corner().y() + h), poly) ||
+            bg::within(Point(box.min_corner().x() + w, box.min_corner().y()), poly) ||
+            bg::within(box.max_corner(), poly) ) {
+            return true;
+        }
+        return false;
+    }
+
 
     /////////////////////////////////
     //
@@ -163,6 +196,11 @@ namespace Visibility {
     inline bool
     contains( const Polygon& poly, const Point& pt ) {
         return bg::within( pt, poly );
+    }
+
+    inline bool
+    contains( const Polygon& container, const Polygon& object ) {
+        return bg::within( object, container );
     }
 
     vector<Segment>
