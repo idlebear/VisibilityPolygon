@@ -84,6 +84,11 @@ namespace Visibility {
     };
 
 
+    // Ref: https://en.wikipedia.org/wiki/Quickhull
+    Polygon
+    quickhull( const vector<Point>& pts );
+
+
     /////////////////////////////////
     //
     // Segment operations
