@@ -29,14 +29,14 @@ namespace Visibility {
         // the correct insertion point into the polygon is after point A
         for( auto it = bg::exterior_ring( hull ).begin(); it != bg::exterior_ring( hull ).end(); it++) {
             if( *it == A ) {
-                bg::exterior_ring( hull ).insert( it, pts[maxI] );
+                bg::exterior_ring( hull ).insert( it+1, pts[maxI] );
                 break;
             }
         }
 
         // 5: make a triangle out of our points and ignore any contained within - in theory
         // this is counter-clockwise...
-        Polygon tri { { A, pts[maxI], B } };
+        Polygon tri { { A, pts[maxI], B, A } };
 
         Segment sp( A, pts[maxI] );
 
@@ -63,10 +63,8 @@ namespace Visibility {
     // Ref: https://en.wikipedia.org/wiki/Quickhull
     Polygon
     quickhull( const vector<Point>& pts ) {
-        Polygon hull;
-
         if( pts.empty() ) {
-            return Polygon();
+            return {};
         }
 
         // 1: Find the points with min and max x as they must be on the hull
@@ -86,9 +84,8 @@ namespace Visibility {
                 maxXIndex = i;
             }
         }
-        addPoint( hull, pts[minXIndex] );
-        addPoint( hull, pts[maxXIndex] );
 
+        Polygon hull { {pts[minXIndex], pts[maxXIndex], pts[minXIndex]} };
 
         // 2: use the line to divide the points
         Segment s( pts[minXIndex], pts[maxXIndex] );
