@@ -34,9 +34,7 @@ namespace Visibility {
             }
         }
 
-        // 5: make a triangle out of our points and ignore any contained within - in theory
-        // this is counter-clockwise...
-        Polygon tri { { A, pts[maxI], B, A } };
+        // 5: make a triangle out of our points and ignore any contained within
 
         // 5b: find the nearest point on the segment to define a perpendicular bisector for splitting the
         //     remaining points
@@ -51,8 +49,7 @@ namespace Visibility {
             }
 //            if( !bg::within( pts[i], tri ) ) {
             if (side({A, pts[maxI]}, pts[i]) > 0 ||
-                side({pts[maxI], B}, pts[i]) > 0 ||
-                side({B, A}, pts[i]) > 0) {
+                side({pts[maxI], B}, pts[i]) > 0 ) {
                 if (side(sp, pts[i]) > 0) {
                     right.emplace_back(pts[i]);
                 } else {

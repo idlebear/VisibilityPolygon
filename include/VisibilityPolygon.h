@@ -141,7 +141,11 @@ namespace Visibility {
         auto dpx = p.x() - s.first.x();
         auto dpy = p.y() - s.first.y();
 
-        return boost::math::sign( dpy * dsx - dpx * dsy );
+        auto det = dpy * dsx - dpx * dsy;
+        if( abs( det ) < VISIBILITY_POLYGON_EPSILON ) {
+            return 0;
+        }
+        return boost::math::sign( det );
     }
 
     inline Point
@@ -152,6 +156,11 @@ namespace Visibility {
         auto dpy = p.y() - s.first.y();
 
         auto ab_bb = (dpx * dsx + dpy * dsy) / (dsx * dsx + dsy * dsy);
+        if( ab_bb < 0 ) {
+            return s.first;
+        } else if( ab_bb > 1 ) {
+            return s.second;
+        }
         return { s.first.x() + dsx * ab_bb, s.first.y() + dsy * ab_bb };
     }
 
