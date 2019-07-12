@@ -144,6 +144,17 @@ namespace Visibility {
         return boost::math::sign( dpy * dsx - dpx * dsy );
     }
 
+    inline Point
+    nearestPoint( const Segment& s, const Point& p ) {
+        auto dsx = s.second.x() - s.first.x();
+        auto dsy = s.second.y() - s.first.y();
+        auto dpx = p.x() - s.first.x();
+        auto dpy = p.y() - s.first.y();
+
+        auto ab_bb = (dpx * dsx + dpy * dsy) / (dsx * dsx + dsy * dsy);
+        return { s.first.x() + dsx * ab_bb, s.first.y() + dsy * ab_bb };
+    }
+
 
     /////////////////////////////////
     //

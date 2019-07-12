@@ -38,7 +38,10 @@ namespace Visibility {
         // this is counter-clockwise...
         Polygon tri { { A, pts[maxI], B, A } };
 
-        Segment sp( A, pts[maxI] );
+        // 5b: find the nearest point on the segment to define a perpendicular bisector for splitting the
+        //     remaining points
+        auto nearest = nearestPoint( s, pts[maxI] );
+        Segment sp( nearest, pts[maxI] );
 
         vector<Point> right;
         vector<Point> left;
@@ -46,11 +49,14 @@ namespace Visibility {
             if( i == maxI ) {
                 continue;
             }
-            if( !bg::within( pts[i], tri ) ) {
-                if( side( sp, pts[i] ) > 0 ) {
-                    right.emplace_back( pts[i] );
+//            if( !bg::within( pts[i], tri ) ) {
+            if (side({A, pts[maxI]}, pts[i]) > 0 ||
+                side({pts[maxI], B}, pts[i]) > 0 ||
+                side({B, A}, pts[i]) > 0) {
+                if (side(sp, pts[i]) > 0) {
+                    right.emplace_back(pts[i]);
                 } else {
-                    left.emplace_back( pts[i] );
+                    left.emplace_back(pts[i]);
                 }
             }
         }
@@ -63,7 +69,8 @@ namespace Visibility {
     // Ref: https://en.wikipedia.org/wiki/Quickhull
     Polygon
     quickhull( const vector<Point>& pts ) {
-        if( pts.empty() ) {
+        if( pts.size() < 3 ) {
+            // need at least three points to make a hull...
             return {};
         }
 
