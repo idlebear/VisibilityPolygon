@@ -66,8 +66,7 @@ namespace Visibility {
     // Ref: https://en.wikipedia.org/wiki/Quickhull
     Polygon
     quickhull( const vector<Point>& pts ) {
-        if( pts.size() < 3 ) {
-            // need at least three points to make a hull...
+        if( pts.empty() ) {
             return {};
         }
 
