@@ -318,12 +318,10 @@ namespace Visibility {
             vector<Point> intersections;
             for (int j = 0; j < 4; ++j) {
                 int k = (j + 1) % 4;
-                vector<Point> newInts;
-                if( intersectSegments(segment, Segment(viewport[j], viewport[k]), newInts)) {
-                    for (auto const &intersect: newInts) {
-                        if (intersect != segment.first && intersect != segment.second) {
-                            intersections.push_back(intersect);
-                        }
+                Point pt;
+                if( intersectSegments(segment, Segment(viewport[j], viewport[k]), pt)) {
+                    if (pt != segment.first && pt != segment.second) {
+                        intersections.push_back(pt);
                     }
                 }
             }
@@ -367,18 +365,17 @@ namespace Visibility {
 
     vector<Segment> breakIntersections(const vector<Segment> &segments) {
         vector<Segment> output;
-        for (int i = 0; i < segments.size(); ++i) {
+        auto n = segments.size();
+        for (int i = 0; i < n; ++i) {
             vector<Point> intersections;
-            for (int j = 0; j < segments.size(); ++j) {
+            for (int j = 0; j < n; ++j) {
                 if (i == j) {
                     continue;
                 }
-                vector<Point> newIntersections;
-                if (intersectSegments(segments[i], segments[j], newIntersections)) {
-                    for (auto const &intersect: newIntersections) {
-                        if (intersect != segments[i].first && intersect != segments[i].second) {
-                            intersections.emplace_back(intersect);
-                        }
+                Point pt;
+                if (intersectSegments(segments[i], segments[j], pt)) {
+                    if (pt != segments[i].first && pt != segments[i].second) {
+                        intersections.emplace_back(pt);
                     }
                 }
             }
