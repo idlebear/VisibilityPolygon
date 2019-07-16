@@ -125,76 +125,39 @@ namespace Visibility {
     inline bool
     intersectSegments( const Segment& a, const Segment& b, Point& res ) {
         // TODO: Curiously, calling the Boost intersection fn is really, really, slow....
-        //   and there's a marginal improvement gain in calling x() and y() only once as well.  Even in
-        //   release mode.  Going to leave it like this for now, but the maintainability suffers somewhat
-        //   in going to the third version...
-
+        
         // V1
-        //        vector<Point> pts;
-        //        bg::intersection( a, b, pts );
-        //        if(pts.empty()) {
-        //            return false;
-        //        }
-        //        res = pts[0];
-        //        return true;
+//                vector<Point> pts;
+//                bg::intersection( a, b, pts );
+//                if(pts.empty()) {
+//                    return false;
+//                }
+//                res = pts[0];
+//                return true;
 
         // V2
-        //        auto dax = a.second.x() - a.first.x();
-        //        auto day = a.second.y() - a.first.y();
-        //        auto dbx = b.second.x() - b.first.x();
-        //        auto dby = b.second.y() - b.first.y();
-        //
-        //        auto denom = dby * dax - dbx * day;
-        //        if( denom == 0) {
-        //            return false;
-        //        }
-        //
-        //        auto s = (dax * (a.first.y() - b.first.y()) - day * (a.first.x() - b.first.x()) ) / denom;
-        //        if(s < 0 || s > 1) {
-        //            return false;
-        //        }
-        //
-        //        auto t = (dbx * (a.first.y() - b.first.y()) - dby * (a.first.x() - b.first.x()) ) / denom;
-        //        if(t < 0 || t > 1) {
-        //            return false;
-        //        }
-        //
-        //        res = Point( a.first.x() + dax * t, a.first.y() + day * t );
-        //        return true;
+            auto dax = a.second.x() - a.first.x();
+            auto day = a.second.y() - a.first.y();
+            auto dbx = b.second.x() - b.first.x();
+            auto dby = b.second.y() - b.first.y();
 
-        // V3
-        auto ax1 = a.first.x();
-        auto ax2 = a.second.x();
-        auto ay1 = a.first.y();
-        auto ay2 = a.second.y();
-        auto bx1 = b.first.x();
-        auto bx2 = b.second.x();
-        auto by1 = b.first.y();
-        auto by2 = b.second.y();
+            auto denom = dby * dax - dbx * day;
+            if( denom == 0) {
+                return false;
+            }
 
-        auto dax = ax2 - ax1;
-        auto day = ay2 - ay1;
-        auto dbx = bx2 - bx1;
-        auto dby = by2 - by1;
+            auto s = (dax * (a.first.y() - b.first.y()) - day * (a.first.x() - b.first.x()) ) / denom;
+            if(s < 0 || s > 1) {
+                return false;
+            }
 
-        auto denom = dby * dax - dbx * day;
-        if( denom == 0) {
-            return false;
-        }
+            auto t = (dbx * (a.first.y() - b.first.y()) - dby * (a.first.x() - b.first.x()) ) / denom;
+            if(t < 0 || t > 1) {
+                return false;
+            }
 
-        auto s = (dax * (ay1 - by1) - day * (ax1 - bx1) ) / denom;
-        if(s < 0 || s > 1) {
-            return false;
-        }
-
-        auto t = (dbx * (ay1 - by1) - dby * (ax1 - by1) ) / denom;
-        if(t < 0 || t > 1) {
-            return false;
-        }
-
-        res = Point( ax1 + dax * t, ay1 + day * t );
-        return true;
-
+            res = Point( a.first.x() + dax * t, a.first.y() + day * t );
+            return true;
     }
 
     inline double
