@@ -68,35 +68,57 @@ namespace Visibility {
     quickhull( const vector<Point>& pts ) {
         if( pts.empty() ) {
             return {};
+        } else if( pts.size() == 1 ) {
+            return {{ pts[0] }};
+        } else if( pts.size() == 2 ) {
+            return {{ pts[0], pts[1], pts[0] }};
         }
 
         // 1: Find the points with min and max x as they must be on the hull
         double maxX = pts[0].x();
-        int maxXIndex = 0;
+        int maxIndex = 0;
         double minX = pts[0].x();
-        int minXIndex = 0;
+        int minIndex = 0;
 
         for( int i = 1; i < pts.size(); i++ ) {
             auto x = pts[i].x();
             if( x < minX ) {
                 minX = x;
-                minXIndex = i;
+                minIndex = i;
             }
             if( x > maxX ) {
                 maxX = x;
-                maxXIndex = i;
+                maxIndex = i;
+            }
+        }
+        // If they're in a column, odd results can happen
+        if( maxIndex == minIndex ) {
+            double maxY = pts[0].y();
+            maxIndex = 0;
+            double minY = pts[0].y();
+            minIndex = 0;
+            for( int i = 1; i < pts.size(); i++ ) {
+                auto y = pts[i].y();
+                if( y < minY ) {
+                    minY = y;
+                    minIndex = i;
+                }
+                if( y > maxY ) {
+                    maxY = y;
+                    maxIndex = i;
+                }
             }
         }
 
-        Polygon hull { {pts[minXIndex], pts[maxXIndex], pts[minXIndex]} };
+        Polygon hull { {pts[minIndex], pts[maxIndex], pts[minIndex]} };
 
         // 2: use the line to divide the points
-        Segment s( pts[minXIndex], pts[maxXIndex] );
+        Segment s( pts[minIndex], pts[maxIndex] );
 
         vector<Point> left;
         vector<Point> right;
         for( int i = 0; i < pts.size(); i++ ) {
-            if( i == minXIndex || i == maxXIndex ) {
+            if( i == minIndex || i == maxIndex ) {
                 continue;
             }
             auto dir = side( s, pts[i] );
