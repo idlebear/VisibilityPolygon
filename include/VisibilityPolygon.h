@@ -20,6 +20,8 @@
 #include <boost/geometry/multi/geometries/multi_polygon.hpp>
 
 #include <boost/geometry/algorithms/intersection.hpp>
+
+#include <boost/math/special_functions/sign.hpp>
 #include <boost/assign.hpp>
 
 using namespace std;
@@ -82,6 +84,11 @@ namespace Visibility {
     };
 
 
+    // Ref: https://en.wikipedia.org/wiki/Quickhull
+    Polygon
+    quickhull( const vector<Point>& pts );
+
+
     /////////////////////////////////
     //
     // Segment operations
@@ -90,14 +97,104 @@ namespace Visibility {
     convertToPoints(const Segment &segment);
 
     inline bool
-    doSegmentsIntersect( const Segment& s1, const Segment& s2 ) {
-        return bg::intersects( s1, s2 );
+    doSegmentsIntersect( const Segment& a, const Segment& b ) {
+//        return bg::intersects( s1, s2 );
+        auto dax = a.second.x() - a.first.x();
+        auto day = a.second.y() - a.first.y();
+        auto dbx = b.second.x() - b.first.x();
+        auto dby = b.second.y() - b.first.y();
+
+        auto denom = dby * dax - dbx * day;
+        if( denom == 0) {
+            return false;
+        }
+
+        auto s = (dax * (a.first.y() - b.first.y()) - day * (a.first.x() - b.first.x()) ) / denom;
+        if(s < 0 || s > 1) {
+            return false;
+        }
+
+        auto t = (dbx * (a.first.y() - b.first.y()) - dby * (a.first.x() - b.first.x()) ) / denom;
+        if(t < 0 || t > 1) {
+            return false;
+        }
+
+        return true;
     }
 
     inline bool
-    intersectSegments( const Segment& s1, const Segment& s2, vector<Point>& res ) {
-        bg::intersection( s1, s2, res );
-        return !res.empty();
+    intersectSegments( const Segment& a, const Segment& b, Point& res ) {
+        // TODO: Curiously, calling the Boost intersection fn is really, really, slow....
+        //   and there's a marginal improvement gain in calling x() and y() only once as well.  Even in
+        //   release mode.  Going to leave it like this for now, but the maintainability suffers somewhat
+        //   in going to the third version...
+
+        // V1
+        //        vector<Point> pts;
+        //        bg::intersection( a, b, pts );
+        //        if(pts.empty()) {
+        //            return false;
+        //        }
+        //        res = pts[0];
+        //        return true;
+
+        // V2
+        //        auto dax = a.second.x() - a.first.x();
+        //        auto day = a.second.y() - a.first.y();
+        //        auto dbx = b.second.x() - b.first.x();
+        //        auto dby = b.second.y() - b.first.y();
+        //
+        //        auto denom = dby * dax - dbx * day;
+        //        if( denom == 0) {
+        //            return false;
+        //        }
+        //
+        //        auto s = (dax * (a.first.y() - b.first.y()) - day * (a.first.x() - b.first.x()) ) / denom;
+        //        if(s < 0 || s > 1) {
+        //            return false;
+        //        }
+        //
+        //        auto t = (dbx * (a.first.y() - b.first.y()) - dby * (a.first.x() - b.first.x()) ) / denom;
+        //        if(t < 0 || t > 1) {
+        //            return false;
+        //        }
+        //
+        //        res = Point( a.first.x() + dax * t, a.first.y() + day * t );
+        //        return true;
+
+        // V3
+        auto ax1 = a.first.x();
+        auto ax2 = a.second.x();
+        auto ay1 = a.first.y();
+        auto ay2 = a.second.y();
+        auto bx1 = b.first.x();
+        auto bx2 = b.second.x();
+        auto by1 = b.first.y();
+        auto by2 = b.second.y();
+
+        auto dax = ax2 - ax1;
+        auto day = ay2 - ay1;
+        auto dbx = bx2 - bx1;
+        auto dby = by2 - by1;
+
+        auto denom = dby * dax - dbx * day;
+        if( denom == 0) {
+            return false;
+        }
+
+        auto s = (dax * (ay1 - by1) - day * (ax1 - bx1) ) / denom;
+        if(s < 0 || s > 1) {
+            return false;
+        }
+
+        auto t = (dbx * (ay1 - by1) - dby * (ax1 - by1) ) / denom;
+        if(t < 0 || t > 1) {
+            return false;
+        }
+
+        res = Point( ax1 + dax * t, ay1 + day * t );
+        return true;
+
     }
 
     inline double
@@ -127,6 +224,37 @@ namespace Visibility {
     breakIntersections(const vector<Segment> &segments);
 
 
+    inline int
+    side( const Segment& s, const Point& p ) {
+        auto dsx = s.second.x() - s.first.x();
+        auto dsy = s.second.y() - s.first.y();
+        auto dpx = p.x() - s.first.x();
+        auto dpy = p.y() - s.first.y();
+
+        auto det = dpy * dsx - dpx * dsy;
+        if( abs( det ) < VISIBILITY_POLYGON_EPSILON ) {
+            return 0;
+        }
+        return boost::math::sign( det );
+    }
+
+    inline Point
+    nearestPoint( const Segment& s, const Point& p ) {
+        auto dsx = s.second.x() - s.first.x();
+        auto dsy = s.second.y() - s.first.y();
+        auto dpx = p.x() - s.first.x();
+        auto dpy = p.y() - s.first.y();
+
+        auto ab_bb = (dpx * dsx + dpy * dsy) / (dsx * dsx + dsy * dsy);
+        if( ab_bb < 0 ) {
+            return s.first;
+        } else if( ab_bb > 1 ) {
+            return s.second;
+        }
+        return { s.first.x() + dsx * ab_bb, s.first.y() + dsy * ab_bb };
+    }
+
+
     /////////////////////////////////
     //
     // Polyline operations
@@ -141,6 +269,26 @@ namespace Visibility {
 
     MultiPolygon
     expand(const PolyLine& line, double distance, int pointsPerCircle = 36 );
+
+    /////////////////////////////////
+    //
+    // Box operations
+    //
+
+    inline bool
+    contains( const Polygon& poly, const Box& box ) {
+        auto w = box.max_corner().x() - box.min_corner().x();
+        auto h = box.max_corner().x() - box.min_corner().x();
+
+        if( bg::within(box.min_corner(), poly) ||
+            bg::within(Point(box.min_corner().x(), box.min_corner().y() + h), poly) ||
+            bg::within(Point(box.min_corner().x() + w, box.min_corner().y()), poly) ||
+            bg::within(box.max_corner(), poly) ) {
+            return true;
+        }
+        return false;
+    }
+
 
     /////////////////////////////////
     //
@@ -163,6 +311,11 @@ namespace Visibility {
     inline bool
     contains( const Polygon& poly, const Point& pt ) {
         return bg::within( pt, poly );
+    }
+
+    inline bool
+    contains( const Polygon& container, const Polygon& object ) {
+        return bg::within( object, container );
     }
 
     vector<Segment>
@@ -191,7 +344,7 @@ namespace Visibility {
     //
     // Intersect to polygons, returning the result (which may be empty...).  We're limiting the Boost interface
     // a bit here by only accepting polygons, but for now, that's all we need...
-
+    // TODO: If we make these template functions, the problem with types goes away...  just saying...
     inline MultiPolygon
     intersectPolygons( const Polygon& lhs, const Polygon& rhs ) {
         MultiPolygon res;

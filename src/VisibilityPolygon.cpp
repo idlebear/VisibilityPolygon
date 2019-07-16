@@ -7,6 +7,139 @@
 
 namespace Visibility {
 
+    void
+    quickhullRecursive( Polygon& hull, const vector<Point>& pts, const Point& A, const Point& B ) {
+        if( pts.empty() ) {
+            return;
+        }
+
+        // 4: Find the furthest point from the line and add it to our list
+        Segment s( A, B );
+
+        double maxDist = bg::distance( pts[0], s );
+        int maxI = 0;
+        for( int i = 1; i < pts.size(); i++ ) {
+            auto d = bg::distance( pts[i], s );
+            if( d > maxDist ) {
+                maxDist = d;
+                maxI = i;
+            }
+        }
+
+        // the correct insertion point into the polygon is after point A
+        for( auto it = bg::exterior_ring( hull ).begin(); it != bg::exterior_ring( hull ).end(); it++) {
+            if( *it == A ) {
+                bg::exterior_ring( hull ).insert( it+1, pts[maxI] );
+                break;
+            }
+        }
+
+        // 5: make a triangle out of our points and ignore any contained within
+
+        // 5b: find the nearest point on the segment to define a perpendicular bisector for splitting the
+        //     remaining points
+        auto nearest = nearestPoint( s, pts[maxI] );
+        Segment sp( nearest, pts[maxI] );
+
+        vector<Point> right;
+        vector<Point> left;
+        for( int i = 0; i < pts.size(); i++ ) {
+            if( i == maxI ) {
+                continue;
+            }
+//            if( !bg::within( pts[i], tri ) ) {
+            if (side({A, pts[maxI]}, pts[i]) > 0 ||
+                side({pts[maxI], B}, pts[i]) > 0 ) {
+                if (side(sp, pts[i]) > 0) {
+                    right.emplace_back(pts[i]);
+                } else {
+                    left.emplace_back(pts[i]);
+                }
+            }
+        }
+
+        // 5: Make a recursive call to find the next points
+        quickhullRecursive( hull, right, A, pts[maxI] );
+        quickhullRecursive( hull, left, pts[maxI], B );
+    }
+
+    // Ref: https://en.wikipedia.org/wiki/Quickhull
+    Polygon
+    quickhull( const vector<Point>& pts ) {
+        if( pts.empty() ) {
+            return {};
+        } else if( pts.size() == 1 ) {
+            return {{ pts[0] }};
+        } else if( pts.size() == 2 ) {
+            return {{ pts[0], pts[1], pts[0] }};
+        }
+
+        // 1: Find the points with min and max x as they must be on the hull
+        double maxX = pts[0].x();
+        int maxIndex = 0;
+        double minX = pts[0].x();
+        int minIndex = 0;
+
+        for( int i = 1; i < pts.size(); i++ ) {
+            auto x = pts[i].x();
+            if( x < minX ) {
+                minX = x;
+                minIndex = i;
+            }
+            if( x > maxX ) {
+                maxX = x;
+                maxIndex = i;
+            }
+        }
+        // If they're in a column, odd results can happen
+        if( maxIndex == minIndex ) {
+            double maxY = pts[0].y();
+            maxIndex = 0;
+            double minY = pts[0].y();
+            minIndex = 0;
+            for( int i = 1; i < pts.size(); i++ ) {
+                auto y = pts[i].y();
+                if( y < minY ) {
+                    minY = y;
+                    minIndex = i;
+                }
+                if( y > maxY ) {
+                    maxY = y;
+                    maxIndex = i;
+                }
+            }
+        }
+
+        Polygon hull { {pts[minIndex], pts[maxIndex], pts[minIndex]} };
+
+        // 2: use the line to divide the points
+        Segment s( pts[minIndex], pts[maxIndex] );
+
+        vector<Point> left;
+        vector<Point> right;
+        for( int i = 0; i < pts.size(); i++ ) {
+            if( i == minIndex || i == maxIndex ) {
+                continue;
+            }
+            auto dir = side( s, pts[i] );
+            // check which side of the line for each point -- arbitrarily selecting +ve is right
+            // if the point is on the line (==0), then ignore it, it's not on the hull...
+            if( dir > 0 ) {
+                right.emplace_back( pts[i] );
+            } else if( dir < 0 ) {
+                left.emplace_back( pts[i] );
+            }
+        }
+
+        // 3: Recursive call to further process the remaining points divide and conquer style...
+        quickhullRecursive( hull, right, s.first, s.second );
+        quickhullRecursive( hull, left, s.second, s.first );
+
+        // If all went well, the hull should now be fully derived
+        return hull;
+    }
+
+
 
     vector<Segment>
     convertToSegments(const Polygon &poly) {
@@ -207,12 +340,10 @@ namespace Visibility {
             vector<Point> intersections;
             for (int j = 0; j < 4; ++j) {
                 int k = (j + 1) % 4;
-                vector<Point> newInts;
-                if( intersectSegments(segment, Segment(viewport[j], viewport[k]), newInts)) {
-                    for (auto const &intersect: newInts) {
-                        if (intersect != segment.first && intersect != segment.second) {
-                            intersections.push_back(intersect);
-                        }
+                Point pt;
+                if( intersectSegments(segment, Segment(viewport[j], viewport[k]), pt)) {
+                    if (pt != segment.first && pt != segment.second) {
+                        intersections.push_back(pt);
                     }
                 }
             }
@@ -256,18 +387,17 @@ namespace Visibility {
 
     vector<Segment> breakIntersections(const vector<Segment> &segments) {
         vector<Segment> output;
-        for (int i = 0; i < segments.size(); ++i) {
+        auto n = segments.size();
+        for (int i = 0; i < n; ++i) {
             vector<Point> intersections;
-            for (int j = 0; j < segments.size(); ++j) {
+            for (int j = 0; j < n; ++j) {
                 if (i == j) {
                     continue;
                 }
-                vector<Point> newIntersections;
-                if (intersectSegments(segments[i], segments[j], newIntersections)) {
-                    for (auto const &intersect: newIntersections) {
-                        if (intersect != segments[i].first && intersect != segments[i].second) {
-                            intersections.emplace_back(intersect);
-                        }
+                Point pt;
+                if (intersectSegments(segments[i], segments[j], pt)) {
+                    if (pt != segments[i].first && pt != segments[i].second) {
+                        intersections.emplace_back(pt);
                     }
                 }
             }
