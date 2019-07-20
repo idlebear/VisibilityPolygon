@@ -147,9 +147,9 @@ namespace Visibility {
         vector<Point> points = convertToExteriorPoints( poly );
 
         auto n = points.size();
-        for (int j = 0; j < n; ++j) {
-            int k = (j + 1) % n;
-            segments.emplace_back(Segment(points[j], points[k]));
+        // Note: polygons are closed with the same point at the start and end of the ring
+        for (int j = 0; j < n-1; ++j) {
+            segments.emplace_back(Segment(points[j], points[j+1]));
         }
         return segments;
     }
