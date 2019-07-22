@@ -11,3 +11,5 @@ cmake-build-debug/
 build/
 
 lib/
+
+cmake-build-release/
