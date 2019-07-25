@@ -1,0 +1,3 @@
+[submodule "thirdParty/decomp"]
+	path = thirdParty/decomp
+	url = git@github.com:idlebear/decomp.git

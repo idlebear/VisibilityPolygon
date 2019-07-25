@@ -3,6 +3,10 @@
 //
 
 #include "../include/VisibilityPolygon.h"
+
+#include "convex_decomposition.hpp"
+#include "triangulation.hpp"
+
 #include <memory>
 
 namespace Visibility {
@@ -549,5 +553,49 @@ namespace Visibility {
         return points;
     };
 
+    vector<Polygon>
+    decompose( const Polygon& polygon ) {
+        vector<decomp::Point> dPoints;
+        decomp::IndexList exteriorRing;
+        vector<decomp::IndexList> holes;
+        vector<Polygon> result;
+
+        if( !bg::is_simple( polygon ) ) {
+            return result;
+        }
+
+        // Add all the points from the exterior ring to point list
+        int index = 0;
+        for( auto it = bg::exterior_ring(polygon).begin(); it != bg::exterior_ring(polygon).end(); it++ ) {
+            dPoints.emplace_back( decomp::Point( (*it).x(), (*it).y() ) );
+            exteriorRing.emplace_back( index );
+            index++;
+        }
+
+        // Now all the interior rings
+        for( auto const& inner: bg::interior_rings(polygon)) {
+            decomp::IndexList hole;
+            for( auto it = inner.begin(); it != inner.end(); it++ ) {
+                dPoints.emplace_back( decomp::Point( (*it).x(), (*it).y() ) );
+                hole.emplace_back( index );
+                index++;
+            }
+            holes.emplace_back( hole );
+        }
+
+        auto decomposition = decomp::decompose( dPoints, exteriorRing, holes );
+
+        // convert the resulting index lists back into polygons...
+        for( auto const& polyList : decomposition ) {
+            Polygon convexPoly;
+            for( auto const& pt: polyList ) {
+                addPoint(convexPoly, {dPoints[pt][0], dPoints[pt][1]});
+            }
+            addPoint(convexPoly, {dPoints[polyList[0]][0], dPoints[polyList[0]][1]});
+            result.emplace_back( convexPoly );
+        }
+
+        return result;
+    }
 
 }

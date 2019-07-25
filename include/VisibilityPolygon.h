@@ -348,6 +348,9 @@ namespace Visibility {
     MultiPolygon
     expand(const Polygon& line, double distance, int pointsPerCircle = 36);
 
+    vector<Polygon>
+    decompose( const Polygon& polygon );
+
     inline bool
     contains( const MultiPolygon& poly, const Point& pt ) {
         return bg::within( pt, poly );
