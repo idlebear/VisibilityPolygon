@@ -553,6 +553,18 @@ namespace Visibility {
         return points;
     };
 
+    int
+    findIndex( const vector<decomp::Point>& pts, const decomp::Point& targetPt ) {
+        int i = 0;
+        for( auto const& pt : pts ) {
+            if( pt == targetPt ) {
+                return i;
+            }
+            i++;
+        }
+        return -1;
+    }
+
     vector<Polygon>
     decompose( const Polygon& polygon ) {
         vector<decomp::Point> dPoints;
@@ -565,20 +577,27 @@ namespace Visibility {
         }
 
         // Add all the points from the exterior ring to point list
-        int index = 0;
-        for( auto it = bg::exterior_ring(polygon).begin(); it != bg::exterior_ring(polygon).end(); it++ ) {
-            dPoints.emplace_back( decomp::Point( (*it).x(), (*it).y() ) );
+        for( auto it = bg::exterior_ring(polygon).rbegin(); it != bg::exterior_ring(polygon).rend() - 1; it++ ) {
+            decomp::Point pt( (*it).x(), (*it).y() );
+            auto index = findIndex( dPoints, pt );
+            if( index == -1 ) {
+                dPoints.emplace_back( pt );
+                index = dPoints.size() - 1;
+            }
             exteriorRing.emplace_back( index );
-            index++;
         }
 
         // Now all the interior rings
         for( auto const& inner: bg::interior_rings(polygon)) {
             decomp::IndexList hole;
-            for( auto it = inner.begin(); it != inner.end(); it++ ) {
-                dPoints.emplace_back( decomp::Point( (*it).x(), (*it).y() ) );
+            for( auto it = inner.rbegin(); it != inner.rend() - 1; it++ ) {
+                decomp::Point pt( (*it).x(), (*it).y() );
+                auto index = findIndex( dPoints, pt );
+                if( index == -1 ) {
+                    dPoints.emplace_back( pt );
+                    index = dPoints.size() - 1;
+                }
                 hole.emplace_back( index );
-                index++;
             }
             holes.emplace_back( hole );
         }
@@ -587,12 +606,17 @@ namespace Visibility {
 
         // convert the resulting index lists back into polygons...
         for( auto const& polyList : decomposition ) {
-            Polygon convexPoly;
-            for( auto const& pt: polyList ) {
-                addPoint(convexPoly, {dPoints[pt][0], dPoints[pt][1]});
+            if( polyList.rbegin() != polyList.rend() ) {
+                Polygon convexPoly;
+                for( auto it = polyList.rbegin(); it != polyList.rend(); it++ ) {
+                    auto i = *it;
+                    addPoint(convexPoly, {dPoints[i][0], dPoints[i][1]});
+                }
+                // close the poly
+                auto i = *(polyList.rbegin());
+                addPoint(convexPoly, {dPoints[i][0], dPoints[i][1]});
+                result.emplace_back( convexPoly );
             }
-            addPoint(convexPoly, {dPoints[polyList[0]][0], dPoints[polyList[0]][1]});
-            result.emplace_back( convexPoly );
         }
 
         return result;
