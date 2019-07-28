@@ -4,8 +4,8 @@
 
 #include "../include/VisibilityPolygon.h"
 
-#include "convex_decomposition.hpp"
-#include "triangulation.hpp"
+#include "../thirdParty/decomp/source/decomp/convex_decomposition.hpp"
+#include "../thirdParty/decomp/source/decomp/triangulation.hpp"
 
 #include <memory>
 
@@ -622,4 +622,60 @@ namespace Visibility {
         return result;
     }
 
+    //
+    // Based on the algorithm published by Pirzadeh's 1999 thesis:
+    // @phdthesis{pirzadeh1999computational,
+    //   title={Computational geometry with the rotating calipers},
+    //   author={Pirzadeh, Hormoz},
+    //   year={1999},
+    //   school={McGill University}
+    // }
+    vector<pair<int,int>>
+    findAntipodals( const Polygon& poly ) {
+        auto const& points = bg::exterior_ring( poly );
+        vector<pair<int,int>> antipods;
+
+        // exterior ring has first and last point as the same...
+        auto n = points.size() - 1;
+        if( n < 3 ) {
+            // Need to have at least three points to have anything useful
+            return {};
+        }
+
+        // Find the initial pair -- basically move around the polygon until the area of
+        // the triangle stops growing
+        auto p = n-1;
+        auto q = ( p + 1 ) % n;
+        
+        while( epsilonGreaterThan( area( points[p], points[(p+1)%n], points[(q+1)%n] ),
+                                   area( points[p], points[(p+1)%n], points[q] ) ) ) {
+            q = (q+1) % n;
+        }
+
+        auto qStart = q;
+        auto pStart = 0;
+        auto pEnd = n - 1;
+        while( q != 0 ) {
+            p = ( p + 1 ) % n;
+            antipods.emplace_back( p, q );
+            while( epsilonGreaterThan( area( points[p], points[(p+1)%n], points[(q+1)%n] ),
+                                       area( points[p], points[(p+1)%n], points[q] ) ) ) {
+                q = (q + 1) % n;
+                if( p == qStart && q == pStart ) {
+                    // all done here
+                    return antipods;
+                }
+                antipods.emplace_back( p, q );
+            }
+            if( epsilonEqual( area( points[p], points[(p+1)%n], points[(q+1)%n] ),
+                              area( points[p], points[(p+1)%n], points[q] ) ) ) {
+                if( p != qStart && q != pEnd ) {
+                    antipods.emplace_back( p, (q+1)%n );
+                } else {
+                    antipods.emplace_back( (p+1)%n, q );
+                }
+            }
+        }
+
+    }
 }

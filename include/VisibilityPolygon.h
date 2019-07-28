@@ -42,6 +42,29 @@ namespace Visibility {
     typedef bg::model::ring<Point> Ring;
     typedef bg::model::box<Point> Box;
 
+    /////////////////////////////
+    //
+    // Support operations to help with floating point precision error
+    //
+    bool
+    epsilonGreaterThan( double lhs, double rhs ) {
+        if( lhs - rhs > VISIBILITY_POLYGON_EPSILON ) {
+            return true;
+        }
+        return false;
+    }
+
+    bool
+    epsilonLessThan( double lhs, double rhs ) {
+        return epsilonGreater( rhs, lhs );
+    }
+
+    bool 
+    epsilonEqual( double lhs, double rhs ) {
+        return abs( lhs - rhs ) < VISIBILITY_POLYGON_EPSILON;
+    }
+    
+
     /////////////////////////////////
     //
     // Point operations
@@ -82,6 +105,15 @@ namespace Visibility {
         }
         return res;
     };
+
+    inline double 
+    area( const Point& a, const Point& b, const Point& c ) {
+        auto vab = b - a;
+        auto vac = c - a;
+
+        return 0.5 * abs( vab.x() * vac.y() - vab.y() * vac.x() );
+    };
+
 
 
     // Ref: https://en.wikipedia.org/wiki/Quickhull
@@ -350,6 +382,9 @@ namespace Visibility {
 
     vector<Polygon>
     decompose( const Polygon& polygon );
+
+    vector<pair<int,int>>
+    findAntipodals( const Polygon& poly );
 
     inline bool
     contains( const MultiPolygon& poly, const Point& pt ) {
