@@ -635,8 +635,7 @@ namespace Visibility {
         auto const& points = bg::exterior_ring( poly );
         vector<pair<int,int>> antipods;
 
-        // exterior ring has first and last point as the same...
-        auto n = points.size() - 1;
+        auto n = points.size() - 1;  // skip the extra (closing) pt
         if( n < 3 ) {
             // Need to have at least three points to have anything useful
             return {};
@@ -644,6 +643,7 @@ namespace Visibility {
 
         // Find the initial pair -- basically move around the polygon until the area of
         // the triangle stops growing
+        auto pStart = 0;
         auto p = n-1;
         auto q = ( p + 1 ) % n;
         
@@ -653,15 +653,14 @@ namespace Visibility {
         }
 
         auto qStart = q;
-        auto pStart = 0;
         auto pEnd = n - 1;
-        while( q != 0 ) {
+        while( q != pStart ) {
             p = ( p + 1 ) % n;
             antipods.emplace_back( p, q );
             while( epsilonGreaterThan( area( points[p], points[(p+1)%n], points[(q+1)%n] ),
                                        area( points[p], points[(p+1)%n], points[q] ) ) ) {
                 q = (q + 1) % n;
-                if( p == qStart && q == pStart ) {
+                if( /*p == qStart || */ q == pStart ) {
                     // all done here
                     return antipods;
                 }
@@ -669,13 +668,40 @@ namespace Visibility {
             }
             if( epsilonEqual( area( points[p], points[(p+1)%n], points[(q+1)%n] ),
                               area( points[p], points[(p+1)%n], points[q] ) ) ) {
-                if( p != qStart && q != pEnd ) {
+                if( p != qStart && q != pStart ) {
                     antipods.emplace_back( p, (q+1)%n );
                 } else {
-                    antipods.emplace_back( (p+1)%n, q );
+                    // antipods.emplace_back( (p+1)%n, q );
                 }
             }
         }
 
+        return antipods;
+    }
+
+    vector<tuple<int, int, int, double>>
+    findHeights( const Polygon& poly ) {
+        auto const& points = bg::exterior_ring( poly );
+        vector<tuple<int,int,int, double >> heights;
+
+        auto n = points.size() - 1;  // skip the extra (closing) pt
+        if( n < 3 ) {
+            // Need to have at least three points to have anything useful
+            return {};
+        }
+
+        auto p = 0;
+        auto q = p + 1;
+        while( p < n ) {
+            auto currentArea = area( points[p], points[(p+1)%n], points[q] );
+            while( epsilonGreaterThan( area( points[p], points[(p+1)%n], points[(q+1)%n] ), currentArea ) ) {
+                q = (q + 1) % n;
+                currentArea = area( points[p], points[(p+1)%n], points[q] );
+            }
+            auto t = make_tuple( p, p+1, q, currentArea * 2.0 / bg::distance( points[p], points[p+1]) );
+            heights.emplace_back( t );
+            p++;
+        }
+        return heights;
     }
 }

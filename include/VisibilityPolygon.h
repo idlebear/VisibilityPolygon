@@ -56,7 +56,7 @@ namespace Visibility {
 
     bool
     epsilonLessThan( double lhs, double rhs ) {
-        return epsilonGreater( rhs, lhs );
+        return epsilonGreaterThan( rhs, lhs );
     }
 
     bool 
@@ -108,10 +108,12 @@ namespace Visibility {
 
     inline double 
     area( const Point& a, const Point& b, const Point& c ) {
-        auto vab = b - a;
-        auto vac = c - a;
+        auto dbx = b.x() - a.x();
+        auto dby = b.y() - a.y();
+        auto dcx = c.x() - a.x();
+        auto dcy = c.y() - a.y();
 
-        return 0.5 * abs( vab.x() * vac.y() - vab.y() * vac.x() );
+        return 0.5 * abs( dbx * dcy - dby * dcx );
     };
 
 
@@ -385,6 +387,9 @@ namespace Visibility {
 
     vector<pair<int,int>>
     findAntipodals( const Polygon& poly );
+
+    vector<tuple<int, int, int, double>>
+    findHeights( const Polygon& poly );
 
     inline bool
     contains( const MultiPolygon& poly, const Point& pt ) {
