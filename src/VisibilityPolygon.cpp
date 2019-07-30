@@ -587,6 +587,11 @@ namespace Visibility {
             exteriorRing.emplace_back( index );
         }
 
+        // Need to have at least 3 exterior points...
+        if( dPoints.size() < 3 ) {
+            return {polygon};
+        }
+
         // Now all the interior rings
         for( auto const& inner: bg::interior_rings(polygon)) {
             decomp::IndexList hole;
@@ -602,18 +607,19 @@ namespace Visibility {
             holes.emplace_back( hole );
         }
 
+
         auto decomposition = decomp::decompose( dPoints, exteriorRing, holes );
 
         // convert the resulting index lists back into polygons...
         for( auto const& polyList : decomposition ) {
-            if( polyList.rbegin() != polyList.rend() ) {
+            if( polyList.begin() != polyList.end() ) {
                 Polygon convexPoly;
-                for( auto it = polyList.rbegin(); it != polyList.rend(); it++ ) {
+                for( auto it = polyList.begin(); it != polyList.end(); it++ ) {
                     auto i = *it;
                     addPoint(convexPoly, {dPoints[i][0], dPoints[i][1]});
                 }
                 // close the poly
-                auto i = *(polyList.rbegin());
+                auto i = *(polyList.begin());
                 addPoint(convexPoly, {dPoints[i][0], dPoints[i][1]});
                 result.emplace_back( convexPoly );
             }
@@ -680,28 +686,95 @@ namespace Visibility {
     }
 
     vector<tuple<int, int, int, double>>
-    findHeights( const Polygon& poly ) {
-        auto const& points = bg::exterior_ring( poly );
-        vector<tuple<int,int,int, double >> heights;
+    findHeights(const Polygon &poly) {
+        auto const &points = bg::exterior_ring(poly);
+        vector<tuple<int, int, int, double >> heights;
 
         auto n = points.size() - 1;  // skip the extra (closing) pt
-        if( n < 3 ) {
+        if (n < 3) {
             // Need to have at least three points to have anything useful
             return {};
         }
 
         auto p = 0;
         auto q = p + 1;
-        while( p < n ) {
-            auto currentArea = area( points[p], points[(p+1)%n], points[q] );
-            while( epsilonGreaterThan( area( points[p], points[(p+1)%n], points[(q+1)%n] ), currentArea ) ) {
+        while (p < n) {
+            auto currentArea = area(points[p], points[(p + 1) % n], points[q]);
+            while (epsilonGreaterThan(area(points[p], points[(p + 1) % n], points[(q + 1) % n]), currentArea)) {
                 q = (q + 1) % n;
-                currentArea = area( points[p], points[(p+1)%n], points[q] );
+                currentArea = area(points[p], points[(p + 1) % n], points[q]);
             }
-            auto t = make_tuple( p, p+1, q, currentArea * 2.0 / bg::distance( points[p], points[p+1]) );
-            heights.emplace_back( t );
+            auto t = make_tuple(p, p + 1, q, currentArea * 2.0 / bg::distance(points[p], points[p + 1]));
+            heights.emplace_back(t);
             p++;
         }
         return heights;
     }
+
+    vector<Segment>
+    planMinHeightCoverage( const Polygon& poly, double width ) {
+        auto heights = findHeights( poly );
+        if( heights.empty() ) {
+            return {};
+        }
+
+        // TODO: lazy way to find the min height...
+        sort(heights.begin(), heights.end(), [](const tuple<int, int, int, double> &a,
+                                                const tuple<int, int, int, double> &b) {
+            return std::get<3>(a) < std::get<3>(b);
+        });
+
+        int a, b, c;
+        double h;
+        // given a side defined by (a,b) and an opposing point (c), first calculate the intersecting point on
+        // the line defined by (a,b)
+        std::tie( a, b, c, h ) = heights[0];
+        auto const &points = bg::exterior_ring(poly);
+        auto A = points[a];
+        auto B = points[b];
+        auto C = points[c];
+        auto len = bg::distance( A, B );
+        auto dx = (B.x() - A.x())/len;
+        auto dy = (B.y() - A.y())/len;
+
+        // calculate scaled unit vector pointing to (c)
+        auto inter = nearestPointToLine( { A, B }, C );
+        auto dxNorm = (C.x() - inter.x())/h;
+        auto dyNorm = (C.y() - inter.y())/h;
+
+        // calculate the  width for each line
+        auto numLines = h / width;
+        if( !epsilonEqual( numLines, int(numLines) ) ) {
+            numLines = double(int(numLines) + 1);
+        }
+        numLines = int( numLines );
+        auto actualWidth = h / numLines - VISIBILITY_POLYGON_EPSILON;
+
+        vector<Segment> lines;
+        lines.reserve( numLines );
+        Segment s( A, B );
+        lines.emplace_back( s );
+        // TODO: Hack here to make intersection of line segment work with a polygon of unknown width -- just make
+        //   the line really long... not pretty and needs a better solution.
+        const double bigNum = 1000;
+        for( int i = 1; i <= numLines; i++ ) {
+            Point mid(inter.x() + i * dxNorm * actualWidth, inter.y() + i * dyNorm * actualWidth);
+            Point p1( mid.x() - dx * bigNum, mid.y() - dy * bigNum );
+            Point p2( mid.x() + dx * bigNum, mid.y() + dy * bigNum );
+            PolyLine pl {p1, p2};
+            vector<PolyLine> bounds;
+            bg::intersection( pl, poly, bounds);
+            if( !bounds.empty() ) {
+                Segment coverageLine( bounds[0].front(), bounds[0].back() );
+                lines.emplace_back( coverageLine );
+            } else {
+                // every line will intersect except possibly the last one which could be just a point...
+                Segment coverageLine( C, {C.x() + dx, C.y() + dy} );
+                lines.emplace_back( coverageLine );
+            }
+        }
+        return lines;
+    }
+
+
 }

@@ -46,7 +46,7 @@ namespace Visibility {
     //
     // Support operations to help with floating point precision error
     //
-    bool
+    inline bool
     epsilonGreaterThan( double lhs, double rhs ) {
         if( lhs - rhs > VISIBILITY_POLYGON_EPSILON ) {
             return true;
@@ -54,12 +54,12 @@ namespace Visibility {
         return false;
     }
 
-    bool
+    inline bool
     epsilonLessThan( double lhs, double rhs ) {
         return epsilonGreaterThan( rhs, lhs );
     }
 
-    bool 
+    inline bool
     epsilonEqual( double lhs, double rhs ) {
         return abs( lhs - rhs ) < VISIBILITY_POLYGON_EPSILON;
     }
@@ -251,6 +251,17 @@ namespace Visibility {
         return { s.first.x() + dsx * ab_bb, s.first.y() + dsy * ab_bb };
     }
 
+    inline Point
+    nearestPointToLine( const Segment& s, const Point& p ) {
+        auto dsx = s.second.x() - s.first.x();
+        auto dsy = s.second.y() - s.first.y();
+        auto dpx = p.x() - s.first.x();
+        auto dpy = p.y() - s.first.y();
+
+        auto ab_bb = (dpx * dsx + dpy * dsy) / (dsx * dsx + dsy * dsy);
+        return { s.first.x() + dsx * ab_bb, s.first.y() + dsy * ab_bb };
+    }
+
 
     /////////////////////////////////
     //
@@ -390,6 +401,9 @@ namespace Visibility {
 
     vector<tuple<int, int, int, double>>
     findHeights( const Polygon& poly );
+
+    vector<Segment>
+    planMinHeightCoverage( const Polygon& poly, double width );
 
     inline bool
     contains( const MultiPolygon& poly, const Point& pt ) {

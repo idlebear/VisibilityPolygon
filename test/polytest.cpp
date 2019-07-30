@@ -61,9 +61,18 @@ int main() {
         int a, b, c;
         double height;
         cout << "** Test " << ++i << endl;
-        for( auto r : res ) {
+        for( auto const& r : res ) {
             tie( a, b, c, height ) = r;
             cout << a << ", "<< b << ", "<< c << " -- " << height << endl;
+        }
+    }
+    cout << "--- Find Coverage --------------" << endl;
+    i = 0;
+    for(auto const& p : polys ) {
+        auto res = V::planMinHeightCoverage( p, 0.25 );
+        cout << "** Test " << ++i << endl;
+        for( auto const& r : res ) {
+            cout << "( " << r.first.x() << ", "<< r.first.y() << ") -- ( "<< r.second.x() << ", " <<  r.second.y() << " )" << endl;
         }
     }
 }
