@@ -130,9 +130,13 @@ namespace Visibility {
     vector<Point>
     convertToPoints(const Segment &segment);
 
+    inline double
+    length( const Segment& segment ) {
+        return bg::distance( segment.first, segment.second );
+    }
+
     inline bool
-    doSegmentsIntersect( const Segment& a, const Segment& b ) {
-//        return bg::intersects( s1, s2 );
+    intersectSegments( const Segment& a, const Segment& b, Point& res, double& aOffset, double& bOffset ) {
         auto dax = a.second.x() - a.first.x();
         auto day = a.second.y() - a.first.y();
         auto dbx = b.second.x() - b.first.x();
@@ -143,83 +147,44 @@ namespace Visibility {
             return false;
         }
 
-        auto s = (dax * (a.first.y() - b.first.y()) - day * (a.first.x() - b.first.x()) ) / denom;
-        if(s < 0 || s > 1) {
-            return false;
-        }
+        // TODO: Validate these offsets -- looks like there may be sign reversal here...(doesn't matter for
+        //   most of the cases... til now...
+        bOffset = (dax * (a.first.y() - b.first.y()) - day * (a.first.x() - b.first.x()) ) / denom;
+        aOffset = (dbx * (a.first.y() - b.first.y()) - dby * (a.first.x() - b.first.x()) ) / denom;
 
-        auto t = (dbx * (a.first.y() - b.first.y()) - dby * (a.first.x() - b.first.x()) ) / denom;
-        if(t < 0 || t > 1) {
-            return false;
-        }
-
+        res = Point( a.first.x() + dax * aOffset, a.first.y() + day * aOffset );
         return true;
     }
 
     inline bool
     intersectSegments( const Segment& a, const Segment& b, Point& res ) {
-        // TODO: Curiously, calling the Boost intersection fn is really, really, slow....
-        
-        // V1
-//                vector<Point> pts;
-//                bg::intersection( a, b, pts );
-//                if(pts.empty()) {
-//                    return false;
-//                }
-//                res = pts[0];
-//                return true;
-
-        // V2
-            auto dax = a.second.x() - a.first.x();
-            auto day = a.second.y() - a.first.y();
-            auto dbx = b.second.x() - b.first.x();
-            auto dby = b.second.y() - b.first.y();
-
-            auto denom = dby * dax - dbx * day;
-            if( denom == 0) {
+        double aOffset, bOffset;
+        if( intersectSegments( a, b, res, aOffset, bOffset ) ) {
+            if(aOffset < 0.0 || aOffset > 1.0) {
                 return false;
             }
-
-            auto s = (dax * (a.first.y() - b.first.y()) - day * (a.first.x() - b.first.x()) ) / denom;
-            if(s < 0 || s > 1) {
+            if(bOffset < 0.0 || bOffset > 1.0) {
                 return false;
             }
-
-            auto t = (dbx * (a.first.y() - b.first.y()) - dby * (a.first.x() - b.first.x()) ) / denom;
-            if(t < 0 || t > 1) {
-                return false;
-            }
-
-            res = Point( a.first.x() + dax * t, a.first.y() + day * t );
             return true;
+        }
+        return false;
     }
 
-    inline double
-    length( const Segment& segment ) {
-        return bg::distance( segment.first, segment.second );
+    inline bool
+    doSegmentsIntersect( const Segment& a, const Segment& b ) {
+        Point res;
+        return intersectSegments( a, b, res );
     }
 
     inline bool
     intersectLines( const Segment& a, const Segment& b, Point& res ) {
-        auto dax = a.second.x() - a.first.x();
-        auto day = a.second.y() - a.first.y();
-        auto dbx = b.second.x() - b.first.x();
-        auto dby = b.second.y() - b.first.y();
-
-        auto u_b = dby * dax - dbx * day;
-        if( u_b == 0) {
-            return false;
-        }
-        auto dabx = a.second.x() - b.second.x();
-        auto daby = a.second.y() - b.second.y();
-        auto ua = (dbx * daby - dby * dabx)/u_b;
-        res = Point( a.second.x() + dax * ua, a.second.y() + day * ua );
-        return true;
+        double offsetA, offsetB;
+        return intersectSegments( a, b, res, offsetA, offsetB );
     };
 
     vector<Segment>
     breakIntersections(const vector<Segment> &segments);
-
 
     inline int
     side( const Segment& s, const Point& p ) {
@@ -251,7 +216,7 @@ namespace Visibility {
         return { s.first.x() + dsx * ab_bb, s.first.y() + dsy * ab_bb };
     }
 
-    inline Point
+    inline pair<Point,double>
     nearestPointToLine( const Segment& s, const Point& p ) {
         auto dsx = s.second.x() - s.first.x();
         auto dsy = s.second.y() - s.first.y();
@@ -259,9 +224,15 @@ namespace Visibility {
         auto dpy = p.y() - s.first.y();
 
         auto ab_bb = (dpx * dsx + dpy * dsy) / (dsx * dsx + dsy * dsy);
-        return { s.first.x() + dsx * ab_bb, s.first.y() + dsy * ab_bb };
+        return { { s.first.x() + dsx * ab_bb, s.first.y() + dsy * ab_bb }, ab_bb };
     }
 
+    inline bool
+    operator==( const Segment& lhs, const Segment& rhs ) {
+        // assume that a directionally reversed segment is equivallent...
+        return ( lhs.first == rhs.first && lhs.second == rhs.second ) ||
+               ( lhs.second == rhs.first && lhs.first == rhs.second );
+    }
 
     /////////////////////////////////
     //

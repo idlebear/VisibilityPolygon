@@ -12,6 +12,14 @@ int main() {
     vector<V::Polygon> polys{
             {{
                      {0, 0},
+                     {7, 0},
+                     {2, 3},
+                     {1, 3},
+                     {-1, 1},
+                     {0,    0}
+             }},
+            {{
+                     {0, 0},
                      {1, 0},
                      {0, 1},
                      {0,    0}
@@ -75,5 +83,30 @@ int main() {
             cout << "( " << r.first.x() << ", "<< r.first.y() << ") -- ( "<< r.second.x() << ", " <<  r.second.y() << " )" << endl;
         }
     }
+
+    cout << "Segment tests" << endl;
+    {
+        V::Segment a( {0,0}, {5,1} );
+        V::Segment before( {-3, 5}, {-3, -4} );
+        V::Segment thru( {3, 3}, {3,-3} );
+        V::Segment after( {7, 2}, {7, -2} );
+
+        V::Point inter;
+        double aOff, bOff;
+        V::intersectSegments( a, before, inter, aOff, bOff );
+        cout << "Before: (" << inter.x() << ", " << inter.y() << ") -- Offset A:" << aOff << " Offset B: " << bOff << endl;
+        assert( aOff < 0 );
+
+        V::intersectSegments( a, thru, inter, aOff, bOff );
+        cout << "Thru: (" << inter.x() << ", " << inter.y() << ") -- Offset A:" << aOff << " Offset B: " << bOff << endl;
+        assert( aOff >= 0 && aOff <= 1 );
+
+        V::intersectSegments( a, after, inter, aOff, bOff );
+        cout << "After: (" << inter.x() << ", " << inter.y() << ") -- Offset A:" << aOff << " Offset B: " << bOff << endl;
+        assert( aOff > 1 );
+
+    }
+
+
 }
 

@@ -7,6 +7,43 @@
 #include "../thirdParty/decomp/source/decomp/convex_decomposition.hpp"
 #include "../thirdParty/decomp/source/decomp/triangulation.hpp"
 
+#define DEBUG 1
+
+#ifdef DEBUG
+#include <iostream>
+
+// Format total borrowed from:
+// https://stackoverflow.com/questions/35811230/c-variable-amount-of-arguments-with-formatting-for-stdcout
+template <typename T>
+void disp(std::ostream& out, T arg) {
+    out << arg;
+}
+
+// recursively displays every arg
+template <typename T, typename ... U>
+void disp(std::ostream& out, T arg, U ... args) {
+    disp(out, arg) ;
+    disp(out, args...);
+}
+
+/* fatal displays its args to std::cout, preceded with "FATAL " and followed
+ * by a newline.
+ * It then does some cleanup and exits
+ */
+template<typename ... T>
+void print_string(T ... args) {
+    disp(std::cout, args...);
+    std::cout << std::endl;
+}
+
+#define  DEBUG_PRINT(args...) print_string( "[DEBUG]: ", args)
+
+#else
+#define  DEBUG_PRINT(...)
+#endif
+
+
+
 #include <memory>
 
 namespace Visibility {
@@ -715,30 +752,43 @@ namespace Visibility {
     planMinHeightCoverage( const Polygon& poly, double width ) {
         auto heights = findHeights( poly );
         if( heights.empty() ) {
+            // TODO: Should have a rational response here -- that or throw something -- the only reason the poly
+            //   could have no height is if it had less than three verticies (or is a line?)
             return {};
         }
 
-        // TODO: lazy way to find the min height...
+        // Sort by height, then select the smallest height that is larger than the scanning width
         sort(heights.begin(), heights.end(), [](const tuple<int, int, int, double> &a,
                                                 const tuple<int, int, int, double> &b) {
             return std::get<3>(a) < std::get<3>(b);
         });
+        int ideal = 0;
+        while( std::get<3>(heights[ideal]) < width ) {
+            ideal++;
+            if( ideal == heights.size() - 1 ) {
+                break;
+            }
+        }
 
         int a, b, c;
         double h;
         // given a side defined by (a,b) and an opposing point (c), first calculate the intersecting point on
         // the line defined by (a,b)
-        std::tie( a, b, c, h ) = heights[0];
+        std::tie( a, b, c, h ) = heights[ideal];
         auto const &points = bg::exterior_ring(poly);
         auto A = points[a];
         auto B = points[b];
+        Segment base ( A, B );
+
         auto C = points[c];
-        auto len = bg::distance( A, B );
+        auto len = length( base );
         auto dx = (B.x() - A.x())/len;
         auto dy = (B.y() - A.y())/len;
 
         // calculate scaled unit vector pointing to (c)
-        auto inter = nearestPointToLine( { A, B }, C );
+        Point inter;
+        double interOffset;
+        std::tie( inter, interOffset ) = nearestPointToLine( { A, B }, C );
         auto dxNorm = (C.x() - inter.x())/h;
         auto dyNorm = (C.y() - inter.y())/h;
 
@@ -748,31 +798,150 @@ namespace Visibility {
             numLines = double(int(numLines) + 1);
         }
         numLines = int( numLines );
-        auto actualWidth = h / numLines - VISIBILITY_POLYGON_EPSILON;
+        // an interesting (?) bug in the geometry library is resulting in a spike if we check for intersection
+        // exactly at the point.  Subtract our epsilon value to ensure that doesn't happen...
+        auto actualWidth = h / numLines;
 
         vector<Segment> lines;
         lines.reserve( numLines );
-        Segment s( A, B );
-        lines.emplace_back( s );
-        // TODO: Hack here to make intersection of line segment work with a polygon of unknown width -- just make
-        //   the line really long... not pretty and needs a better solution.
-        const double bigNum = 1000;
-        for( int i = 1; i <= numLines; i++ ) {
-            Point mid(inter.x() + i * dxNorm * actualWidth, inter.y() + i * dyNorm * actualWidth);
-            Point p1( mid.x() - dx * bigNum, mid.y() - dy * bigNum );
-            Point p2( mid.x() + dx * bigNum, mid.y() + dy * bigNum );
-            PolyLine pl {p1, p2};
-            vector<PolyLine> bounds;
-            bg::intersection( pl, poly, bounds);
-            if( !bounds.empty() ) {
-                Segment coverageLine( bounds[0].front(), bounds[0].back() );
-                lines.emplace_back( coverageLine );
-            } else {
-                // every line will intersect except possibly the last one which could be just a point...
-                Segment coverageLine( C, {C.x() + dx, C.y() + dy} );
-                lines.emplace_back( coverageLine );
+
+        double maxLen = bg::distance( A, B );
+        double bigNum = 100;
+
+        // convert the polygon to segments so we can find the intersections, and find the starting segment
+        auto segments = convertToSegments( poly );
+        auto numSegments = segments.size();
+        int forwardSegmentIndex = 0;
+        for( auto const& segment : segments ) {
+            if( segment == base ) {
+                break;
             }
+            forwardSegmentIndex++;
         }
+        assert( forwardSegmentIndex < numSegments );  // better find it!
+
+        // start at the next (and previous) segment
+        int reverseSegmentIndex = ( forwardSegmentIndex - 1 + numSegments) % numSegments;
+        forwardSegmentIndex = ( forwardSegmentIndex + 1 ) % numSegments;
+        double forwardOffset = 0;
+        double reverseOffset = 0;
+
+        double nextForwardOffset;
+        double nextReverseOffset;
+        {
+            Point p1(inter.x() - dx * bigNum, inter.y() - dy * bigNum);
+            Point p2(inter.x() + dx * bigNum, inter.y() + dy * bigNum);
+
+            Segment bottomLine(p1, p2);
+            Point extent;
+            double offset;
+            std::tie(extent, nextForwardOffset) = nearestPointToLine( bottomLine, B );
+            std::tie(extent, nextReverseOffset) = nearestPointToLine( bottomLine, A );
+        }
+
+        for( int i = 0; i < numLines - 1; i++ ) {
+
+            forwardOffset = nextForwardOffset;
+            reverseOffset = nextReverseOffset;
+
+            auto topOffset = i + 1;
+            Point mid(inter.x() + topOffset * dxNorm * actualWidth, inter.y() + topOffset * dyNorm * actualWidth);
+            Point p1(mid.x() - dx * bigNum, mid.y() - dy * bigNum);
+            Point p2(mid.x() + dx * bigNum, mid.y() + dy * bigNum);
+
+            Segment topLine(p1, p2);
+
+            // check the forward intersections...
+            while (forwardSegmentIndex != reverseSegmentIndex ) {
+                //      intersect next segment with top line is positive (ahead of the segment)
+                double segOffset, lineOffset;
+                Point cross;
+                if (!intersectSegments(segments[forwardSegmentIndex], topLine, cross, segOffset, lineOffset)) {
+                    // segment is parallel -- this can only be the end segment which we aren't looking at (because
+                    // we're stopping early...
+                    DEBUG_PRINT( "PARALLEL????" );
+                }
+                if (segOffset > 1) {
+                    //      calculate the maximum extent of the endpoint of the segment relative to the topline
+                    Point extent;
+                    double offset;
+                    std::tie(extent, offset) = nearestPointToLine( topLine, segments[forwardSegmentIndex].second );
+                    forwardOffset  = std::max( forwardOffset, offset );
+//                } else if (segOffset < 0) {
+//                    // should never happen, we've somehow gone past without intersecting
+//                    DEBUG_PRINT( "BEHIND (forward)????" );
+//                    break;
+                } else {
+                    nextForwardOffset = lineOffset;
+                    forwardOffset  = std::max( forwardOffset, lineOffset );
+                    break;
+                }
+                forwardSegmentIndex = ( forwardSegmentIndex + 1 ) % numSegments;
+            }
+
+            // and the reverse intersections...
+            while ( true ) {
+                //      intersect next segment with top line is positive (ahead of the segment)
+                double segOffset, lineOffset;
+                Point cross;
+                if (!intersectSegments(segments[reverseSegmentIndex], topLine, cross, segOffset, lineOffset)) {
+                    // segment is parallel -- this can only be the end segment which we aren't looking at (because
+                    // we're stopping early...
+                    DEBUG_PRINT( "PARALLEL (reverse)????" );
+                }
+                // on the left side, going backwards, the topline should always be behind the segment...
+                if (segOffset < 0) {
+                    //      calculate the maximum extent of the endpoint of the segment relative to the topline
+                    Point extent;
+                    double offset;
+                    std::tie(extent, offset) = nearestPointToLine( topLine, segments[reverseSegmentIndex].first );
+                    reverseOffset = std::min( reverseOffset, offset );
+//                } else if (segOffset > 1) {
+//                    // should never happen, we've somehow gone past without intersecting
+//                    DEBUG_PRINT( "BEHIND (reverse)????" );
+//                    break;
+                } else {
+                    nextReverseOffset = lineOffset;
+                    reverseOffset  = std::min( reverseOffset, lineOffset );
+                    break;
+                }
+
+                if( reverseSegmentIndex == forwardSegmentIndex ) {
+                    break;
+                }
+                reverseSegmentIndex = (reverseSegmentIndex - 1 + numSegments) % numSegments;
+            }
+
+            // the actual line is at half the width, and at distance (reverseOffset, forwardOffset) * length of our
+            // guide line
+            Point coverageMid(inter.x() + (i + 0.5) * dxNorm * actualWidth, inter.y() + (i+0.5) * dyNorm * actualWidth);
+            Point left( coverageMid.x() + bigNum * (reverseOffset * 2 - 1) * dx, coverageMid.y() + bigNum * (reverseOffset * 2 - 1) * dy );
+            Point right( coverageMid.x() + bigNum * (forwardOffset * 2 - 1) * dx, coverageMid.y() + bigNum * (forwardOffset * 2 - 1) * dy );
+            Segment coverageLine( left, right );
+            lines.emplace_back( coverageLine );
+        }
+
+        // For the final section, the min/max extents are simply those of the leading vertex (the second) of
+        // each segment as we move forward around the curve
+        forwardOffset = nextForwardOffset;
+        reverseOffset = nextReverseOffset;
+        Point mid(inter.x() + numLines * dxNorm * actualWidth, inter.y() + numLines * dyNorm * actualWidth);
+        Point p1(mid.x() - dx * bigNum, mid.y() - dy * bigNum);
+        Point p2(mid.x() + dx * bigNum, mid.y() + dy * bigNum);
+        Segment topLine(p1, p2);
+        for( ; forwardSegmentIndex != reverseSegmentIndex; forwardSegmentIndex = ( forwardSegmentIndex  + 1 ) % numSegments ) {
+            Point extent;
+            double offset;
+            std::tie(extent, offset) = nearestPointToLine( topLine, segments[forwardSegmentIndex].second );
+            forwardOffset = std::max( forwardOffset, offset );
+            reverseOffset = std::min( reverseOffset, offset );
+        }
+        Point coverageMid(inter.x() + ((numLines - 1) + 0.5) * dxNorm * actualWidth, inter.y() + ((numLines-1)+0.5) * dyNorm * actualWidth);
+        Point left( coverageMid.x() + bigNum * (reverseOffset * 2 - 1) * dx, coverageMid.y() + bigNum * (reverseOffset * 2 - 1) * dy );
+        Point right( coverageMid.x() + bigNum * (forwardOffset * 2 - 1) * dx, coverageMid.y() + bigNum * (forwardOffset * 2 - 1) * dy );
+        Segment coverageLine( left, right );
+        lines.emplace_back( coverageLine );
+
         return lines;
     }
 
