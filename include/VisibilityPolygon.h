@@ -247,7 +247,7 @@ namespace Visibility {
     convertToSegments( const PolyLine& line );
 
     MultiPolygon
-    expand(const PolyLine& line, double distance, int pointsPerCircle = 36 );
+    expand(const PolyLine& line, double distance, int pointsPerCircle = 18 );
 
     /////////////////////////////////
     //
@@ -362,7 +362,7 @@ namespace Visibility {
 
     // TODO: fix these so we don't have a proliferation for every bloody type -- fine for prototyping, but ugly...
     MultiPolygon
-    expand(const Polygon& line, double distance, int pointsPerCircle = 36);
+    expand(const Polygon& poly, double distance, int pointsPerCircle = 36);
 
     vector<Polygon>
     decompose( const Polygon& polygon );
@@ -373,8 +373,27 @@ namespace Visibility {
     vector<tuple<int, int, int, double>>
     findHeights( const Polygon& poly );
 
-    vector<Segment>
-    planMinHeightCoverage( const Polygon& poly, double width );
+    inline bool
+    isAdjacent( const Polygon& a, const Polygon& b ) {
+        auto aSegs = convertToSegments(a);
+        auto bSegs = convertToSegments(b);
+        for (auto const &sa : aSegs) {
+            for (auto const &sb : bSegs) {
+                if (sa == sb) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    inline Polygon
+    combineHulls( const Polygon& a, const Polygon& b ) {
+        auto aPts = convertToExteriorPoints(a);
+        auto bPts = convertToExteriorPoints(b);
+        std::move(bPts.begin(), bPts.end(), std::back_inserter(aPts));
+        return quickhull(aPts);
+    }
 
     inline bool
     contains( const MultiPolygon& poly, const Point& pt ) {
