@@ -763,9 +763,10 @@ namespace Visibility {
             return std::get<3>(a) < std::get<3>(b);
         });
         int ideal = 0;
-        while( std::get<3>(heights[ideal]) < width ) {
-            ideal++;
-            if( ideal == heights.size() - 1 ) {
+        for( int i = 1; i < heights.size(); i++ ) {
+            if( std::get<3>(heights[i]) <= width ) {
+                ideal++;
+            } else {
                 break;
             }
         }
@@ -810,6 +811,12 @@ namespace Visibility {
 
         // convert the polygon to segments so we can find the intersections, and find the starting segment
         auto segments = convertToSegments( poly );
+
+        DEBUG_PRINT( "*********** Segment *** " );
+        for( auto const& s : segments ) {
+            DEBUG_PRINT( "S: (", s.first.x(), ", ", s.first.y(), "), (", s.second.x(), ", ", s.second.y(), ")" );
+        }
+
         auto numSegments = segments.size();
         int forwardSegmentIndex = 0;
         for( auto const& segment : segments ) {
@@ -856,25 +863,22 @@ namespace Visibility {
                 //      intersect next segment with top line is positive (ahead of the segment)
                 double segOffset, lineOffset;
                 Point cross;
-                if (!intersectSegments(segments[forwardSegmentIndex], topLine, cross, segOffset, lineOffset)) {
-                    // segment is parallel -- this can only be the end segment which we aren't looking at (because
-                    // we're stopping early...
-                    DEBUG_PRINT( "PARALLEL????" );
-                }
-                if (segOffset > 1) {
+                if ( intersectSegments(segments[forwardSegmentIndex], topLine, cross, segOffset, lineOffset) &&
+                        ( segOffset >= 0 && segOffset <= 1) ) {
+                    nextForwardOffset = lineOffset;
+                    forwardOffset = std::max(forwardOffset, lineOffset);
+                    break;
+                } else {
+                    // one valid condition (we haven't crossed paralle) and two possible errors (parallel or behind) -
+                    // both due to rounding error and funky polygons...
+                    if( !(segOffset > 1) ) {
+                        DEBUG_PRINT( "Rounding errors..." );
+                    }
                     //      calculate the maximum extent of the endpoint of the segment relative to the topline
                     Point extent;
                     double offset;
                     std::tie(extent, offset) = nearestPointToLine( topLine, segments[forwardSegmentIndex].second );
                     forwardOffset  = std::max( forwardOffset, offset );
-//                } else if (segOffset < 0) {
-//                    // should never happen, we've somehow gone past without intersecting
-//                    DEBUG_PRINT( "BEHIND (forward)????" );
-//                    break;
-                } else {
-                    nextForwardOffset = lineOffset;
-                    forwardOffset  = std::max( forwardOffset, lineOffset );
-                    break;
                 }
                 forwardSegmentIndex = ( forwardSegmentIndex + 1 ) % numSegments;
             }
@@ -884,26 +888,22 @@ namespace Visibility {
                 //      intersect next segment with top line is positive (ahead of the segment)
                 double segOffset, lineOffset;
                 Point cross;
-                if (!intersectSegments(segments[reverseSegmentIndex], topLine, cross, segOffset, lineOffset)) {
-                    // segment is parallel -- this can only be the end segment which we aren't looking at (because
-                    // we're stopping early...
-                    DEBUG_PRINT( "PARALLEL (reverse)????" );
-                }
-                // on the left side, going backwards, the topline should always be behind the segment...
-                if (segOffset < 0) {
+                if ( intersectSegments(segments[reverseSegmentIndex], topLine, cross, segOffset, lineOffset) &&
+                     ( segOffset >= 0 && segOffset <= 1) ) {
+                    nextReverseOffset = lineOffset;
+                    reverseOffset = std::min(reverseOffset, lineOffset);
+                    break;
+                } else {
+                    // one valid condition (we haven't crossed paralle) and two possible errors (parallel or behind) -
+                    // both due to rounding error and funky polygons...
+                    if( !(segOffset > 1) ) {
+                        DEBUG_PRINT( "Rounding errors..." );
+                    }
                     //      calculate the maximum extent of the endpoint of the segment relative to the topline
                     Point extent;
                     double offset;
                     std::tie(extent, offset) = nearestPointToLine( topLine, segments[reverseSegmentIndex].first );
-                    reverseOffset = std::min( reverseOffset, offset );
-//                } else if (segOffset > 1) {
-//                    // should never happen, we've somehow gone past without intersecting
-//                    DEBUG_PRINT( "BEHIND (reverse)????" );
-//                    break;
-                } else {
-                    nextReverseOffset = lineOffset;
-                    reverseOffset  = std::min( reverseOffset, lineOffset );
-                    break;
+                    reverseOffset  = std::min( reverseOffset, offset );
                 }
 
                 if( reverseSegmentIndex == forwardSegmentIndex ) {

@@ -11,6 +11,16 @@ int main() {
 
     vector<V::Polygon> polys{
             {{
+                    {893.542, 1338},
+                    {893.542, 1295},
+                    {1004.54, 1273.5},
+                    {1078.54, 1402.5},
+                    {1004.54, 1402.5},
+                    {967.542, 1381},
+                    {893.542, 1338}
+
+            }},
+            {{
                      {0, 0},
                      {7, 0},
                      {2, 3},
@@ -18,6 +28,7 @@ int main() {
                      {-1, 1},
                      {0,    0}
              }},
+
             {{
                      {0, 0},
                      {1, 0},
@@ -77,7 +88,7 @@ int main() {
     cout << "--- Find Coverage --------------" << endl;
     i = 0;
     for(auto const& p : polys ) {
-        auto res = V::planMinHeightCoverage( p, 0.25 );
+        auto res = V::planMinHeightCoverage( p, 50);
         cout << "** Test " << ++i << endl;
         for( auto const& r : res ) {
             cout << "( " << r.first.x() << ", "<< r.first.y() << ") -- ( "<< r.second.x() << ", " <<  r.second.y() << " )" << endl;
