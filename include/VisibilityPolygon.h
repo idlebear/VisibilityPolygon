@@ -196,8 +196,11 @@ namespace Visibility {
         auto det = dpy * dsx - dpx * dsy;
         if( abs( det ) < VISIBILITY_POLYGON_EPSILON ) {
             return 0;
+        } else if( det > 0 ) {
+            return 1;
+        } else {
+            return -1;
         }
-        return boost::math::sign( det );
     }
 
     inline Point
@@ -225,6 +228,20 @@ namespace Visibility {
 
         auto ab_bb = (dpx * dsx + dpy * dsy) / (dsx * dsx + dsy * dsy);
         return { { s.first.x() + dsx * ab_bb, s.first.y() + dsy * ab_bb }, ab_bb };
+    }
+
+    inline bool
+    projectsOnSegment( const Segment& s, const Point& p ) {
+        auto dsx = s.second.x() - s.first.x();
+        auto dsy = s.second.y() - s.first.y();
+        auto dpx = p.x() - s.first.x();
+        auto dpy = p.y() - s.first.y();
+
+        auto ab_bb = (dpx * dsx + dpy * dsy) / (dsx * dsx + dsy * dsy);
+        if( ab_bb < 0 || ab_bb > 1 ) {
+            return false;
+        }
+        return true;
     }
 
     inline bool
