@@ -42,6 +42,29 @@ namespace Visibility {
     typedef bg::model::ring<Point> Ring;
     typedef bg::model::box<Point> Box;
 
+    /////////////////////////////
+    //
+    // Support operations to help with floating point precision error
+    //
+    inline bool
+    epsilonGreaterThan( double lhs, double rhs ) {
+        if( lhs - rhs > VISIBILITY_POLYGON_EPSILON ) {
+            return true;
+        }
+        return false;
+    }
+
+    inline bool
+    epsilonLessThan( double lhs, double rhs ) {
+        return epsilonGreaterThan( rhs, lhs );
+    }
+
+    inline bool
+    epsilonEqual( double lhs, double rhs ) {
+        return abs( lhs - rhs ) < VISIBILITY_POLYGON_EPSILON;
+    }
+    
+
     /////////////////////////////////
     //
     // Point operations
@@ -83,6 +106,17 @@ namespace Visibility {
         return res;
     };
 
+    inline double 
+    area( const Point& a, const Point& b, const Point& c ) {
+        auto dbx = b.x() - a.x();
+        auto dby = b.y() - a.y();
+        auto dcx = c.x() - a.x();
+        auto dcy = c.y() - a.y();
+
+        return 0.5 * abs( dbx * dcy - dby * dcx );
+    };
+
+
 
     // Ref: https://en.wikipedia.org/wiki/Quickhull
     Polygon
@@ -96,9 +130,13 @@ namespace Visibility {
     vector<Point>
     convertToPoints(const Segment &segment);
 
+    inline double
+    length( const Segment& segment ) {
+        return bg::distance( segment.first, segment.second );
+    }
+
     inline bool
-    doSegmentsIntersect( const Segment& a, const Segment& b ) {
-//        return bg::intersects( s1, s2 );
+    intersectSegments( const Segment& a, const Segment& b, Point& res, double& aOffset, double& bOffset ) {
         auto dax = a.second.x() - a.first.x();
         auto day = a.second.y() - a.first.y();
         auto dbx = b.second.x() - b.first.x();
@@ -109,83 +147,44 @@ namespace Visibility {
             return false;
         }
 
-        auto s = (dax * (a.first.y() - b.first.y()) - day * (a.first.x() - b.first.x()) ) / denom;
-        if(s < 0 || s > 1) {
-            return false;
-        }
+        // TODO: Validate these offsets -- looks like there may be sign reversal here...(doesn't matter for
+        //   most of the cases... til now...
+        bOffset = (dax * (a.first.y() - b.first.y()) - day * (a.first.x() - b.first.x()) ) / denom;
+        aOffset = (dbx * (a.first.y() - b.first.y()) - dby * (a.first.x() - b.first.x()) ) / denom;
 
-        auto t = (dbx * (a.first.y() - b.first.y()) - dby * (a.first.x() - b.first.x()) ) / denom;
-        if(t < 0 || t > 1) {
-            return false;
-        }
-
+        res = Point( a.first.x() + dax * aOffset, a.first.y() + day * aOffset );
         return true;
     }
 
     inline bool
     intersectSegments( const Segment& a, const Segment& b, Point& res ) {
-        // TODO: Curiously, calling the Boost intersection fn is really, really, slow....
-        
-        // V1
-//                vector<Point> pts;
-//                bg::intersection( a, b, pts );
-//                if(pts.empty()) {
-//                    return false;
-//                }
-//                res = pts[0];
-//                return true;
-
-        // V2
-            auto dax = a.second.x() - a.first.x();
-            auto day = a.second.y() - a.first.y();
-            auto dbx = b.second.x() - b.first.x();
-            auto dby = b.second.y() - b.first.y();
-
-            auto denom = dby * dax - dbx * day;
-            if( denom == 0) {
+        double aOffset, bOffset;
+        if( intersectSegments( a, b, res, aOffset, bOffset ) ) {
+            if(aOffset < 0.0 || aOffset > 1.0) {
                 return false;
             }
-
-            auto s = (dax * (a.first.y() - b.first.y()) - day * (a.first.x() - b.first.x()) ) / denom;
-            if(s < 0 || s > 1) {
+            if(bOffset < 0.0 || bOffset > 1.0) {
                 return false;
             }
-
-            auto t = (dbx * (a.first.y() - b.first.y()) - dby * (a.first.x() - b.first.x()) ) / denom;
-            if(t < 0 || t > 1) {
-                return false;
-            }
-
-            res = Point( a.first.x() + dax * t, a.first.y() + day * t );
             return true;
+        }
+        return false;
     }
 
-    inline double
-    length( const Segment& segment ) {
-        return bg::distance( segment.first, segment.second );
+    inline bool
+    doSegmentsIntersect( const Segment& a, const Segment& b ) {
+        Point res;
+        return intersectSegments( a, b, res );
     }
 
     inline bool
     intersectLines( const Segment& a, const Segment& b, Point& res ) {
-        auto dax = a.second.x() - a.first.x();
-        auto day = a.second.y() - a.first.y();
-        auto dbx = b.second.x() - b.first.x();
-        auto dby = b.second.y() - b.first.y();
-
-        auto u_b = dby * dax - dbx * day;
-        if( u_b == 0) {
-            return false;
-        }
-        auto dabx = a.second.x() - b.second.x();
-        auto daby = a.second.y() - b.second.y();
-        auto ua = (dbx * daby - dby * dabx)/u_b;
-        res = Point( a.second.x() + dax * ua, a.second.y() + day * ua );
-        return true;
+        double offsetA, offsetB;
+        return intersectSegments( a, b, res, offsetA, offsetB );
     };
 
     vector<Segment>
     breakIntersections(const vector<Segment> &segments);
-
 
     inline int
     side( const Segment& s, const Point& p ) {
@@ -197,8 +196,11 @@ namespace Visibility {
         auto det = dpy * dsx - dpx * dsy;
         if( abs( det ) < VISIBILITY_POLYGON_EPSILON ) {
             return 0;
+        } else if( det > 0 ) {
+            return 1;
+        } else {
+            return -1;
         }
-        return boost::math::sign( det );
     }
 
     inline Point
@@ -217,6 +219,37 @@ namespace Visibility {
         return { s.first.x() + dsx * ab_bb, s.first.y() + dsy * ab_bb };
     }
 
+    inline pair<Point,double>
+    nearestPointToLine( const Segment& s, const Point& p ) {
+        auto dsx = s.second.x() - s.first.x();
+        auto dsy = s.second.y() - s.first.y();
+        auto dpx = p.x() - s.first.x();
+        auto dpy = p.y() - s.first.y();
+
+        auto ab_bb = (dpx * dsx + dpy * dsy) / (dsx * dsx + dsy * dsy);
+        return { { s.first.x() + dsx * ab_bb, s.first.y() + dsy * ab_bb }, ab_bb };
+    }
+
+    inline bool
+    projectsOnSegment( const Segment& s, const Point& p ) {
+        auto dsx = s.second.x() - s.first.x();
+        auto dsy = s.second.y() - s.first.y();
+        auto dpx = p.x() - s.first.x();
+        auto dpy = p.y() - s.first.y();
+
+        auto ab_bb = (dpx * dsx + dpy * dsy) / (dsx * dsx + dsy * dsy);
+        if( ab_bb < 0 || ab_bb > 1 ) {
+            return false;
+        }
+        return true;
+    }
+
+    inline bool
+    operator==( const Segment& lhs, const Segment& rhs ) {
+        // assume that a directionally reversed segment is equivallent...
+        return ( lhs.first == rhs.first && lhs.second == rhs.second ) ||
+               ( lhs.second == rhs.first && lhs.first == rhs.second );
+    }
 
     /////////////////////////////////
     //
@@ -231,7 +264,7 @@ namespace Visibility {
     convertToSegments( const PolyLine& line );
 
     MultiPolygon
-    expand(const PolyLine& line, double distance, int pointsPerCircle = 36 );
+    expand(const PolyLine& line, double distance, int pointsPerCircle = 18 );
 
     /////////////////////////////////
     //
@@ -346,7 +379,38 @@ namespace Visibility {
 
     // TODO: fix these so we don't have a proliferation for every bloody type -- fine for prototyping, but ugly...
     MultiPolygon
-    expand(const Polygon& line, double distance, int pointsPerCircle = 36);
+    expand(const Polygon& poly, double distance, int pointsPerCircle = 36);
+
+    vector<Polygon>
+    decompose( const Polygon& polygon );
+
+    vector<pair<int,int>>
+    findAntipodals( const Polygon& poly );
+
+    vector<tuple<int, int, int, double>>
+    findHeights( const Polygon& poly );
+
+    inline bool
+    isAdjacent( const Polygon& a, const Polygon& b ) {
+        auto aSegs = convertToSegments(a);
+        auto bSegs = convertToSegments(b);
+        for (auto const &sa : aSegs) {
+            for (auto const &sb : bSegs) {
+                if (sa == sb) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    inline Polygon
+    combineHulls( const Polygon& a, const Polygon& b ) {
+        auto aPts = convertToExteriorPoints(a);
+        auto bPts = convertToExteriorPoints(b);
+        std::move(bPts.begin(), bPts.end(), std::back_inserter(aPts));
+        return quickhull(aPts);
+    }
 
     inline bool
     contains( const MultiPolygon& poly, const Point& pt ) {

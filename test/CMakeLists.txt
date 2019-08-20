@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(visibility-polygon)
+project(visibility-polygon-test)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
 add_compile_options(-std=c++11)
@@ -10,9 +10,6 @@ add_compile_options(-std=c++11)
 find_package(Eigen3 REQUIRED)
 find_package(Boost REQUIRED)
 
-find_path(decomp_INCLUDE_DIRS convex_decomposition.hpp thirdParty/decomp/source/decomp )
-add_subdirectory( thirdParty/decomp )
-
 ###########
 ## Build ##
 ###########
@@ -20,10 +17,9 @@ add_subdirectory( thirdParty/decomp )
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(
-    include
+    ../include
     ${EIGEN3_INCLUDE_DIRS}
     ${BOOST_INCLUDE_DIRS}
-    ${decomp_INCLUDE_DIRS}
 )
 
 SET(visibility-polygon_LIBRARY_OUTPUT_DIRECTORY ${visibility-polygon_SOURCE_DIR}/lib CACHE PATH "Target for the libraries")
@@ -31,10 +27,9 @@ SET(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${visibility-polygon_LIBRARY_OUTPUT_DIRECTORY
 SET(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${visibility-polygon_LIBRARY_OUTPUT_DIRECTORY})
 SET(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${visibility-polygon_RUNTIME_OUTPUT_DIRECTORY})
 
-## Declare a C++ library
-add_library(${PROJECT_NAME} SHARED
-   src/VisibilityPolygon.cpp
-    ${decomp_SOURCES}
+## Declare a C++ executable
+add_executable(${PROJECT_NAME}
+   polytest.cpp
 )
 
 
@@ -42,6 +37,7 @@ add_library(${PROJECT_NAME} SHARED
 target_link_libraries(${PROJECT_NAME}
     ${EIGEN3_LIBRARIES}
     ${BOOST_LIBRARIES}
+    ${CMAKE_SOURCE_DIR}/../lib/libvisibility-polygon.so
 )
 
 #############
@@ -59,11 +55,11 @@ target_link_libraries(${PROJECT_NAME}
 # )
 
 ## Mark executables and/or libraries for installation
-install(TARGETS ${PROJECT_NAME}
+# install(TARGETS ${PROJECT_NAME}
 #   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-        LIBRARY DESTINATION lib
+#  LIBRARY DESTINATION lib
 #   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-)
+# )
 
 ## Mark cpp header files for installation
 # install(DIRECTORY include/${PROJECT_NAME}/
@@ -71,8 +67,8 @@ install(TARGETS ${PROJECT_NAME}
 #   FILES_MATCHING PATTERN "*.h"
 #   PATTERN ".svn" EXCLUDE
 # )
-INSTALL(DIRECTORY ${PROJECT_NAME} DESTINATION ${CMAKE_INSTALL_PREFIX}/include
-        FILES_MATCHING PATTERN "*.h" )
+#INSTALL(DIRECTORY ${PROJECT_NAME} DESTINATION ${CMAKE_INSTALL_PREFIX}/include
+#        FILES_MATCHING PATTERN "*.h" )
 
 ## Mark other files for installation (e.g. launch and bag files, etc.)
 # install(FILES

@@ -3,6 +3,47 @@
 //
 
 #include "../include/VisibilityPolygon.h"
+
+#include "../thirdParty/decomp/source/decomp/convex_decomposition.hpp"
+#include "../thirdParty/decomp/source/decomp/triangulation.hpp"
+
+#define DEBUG 1
+
+#ifdef DEBUG
+#include <iostream>
+
+// Format total borrowed from:
+// https://stackoverflow.com/questions/35811230/c-variable-amount-of-arguments-with-formatting-for-stdcout
+template <typename T>
+void disp(std::ostream& out, T arg) {
+    out << arg;
+}
+
+// recursively displays every arg
+template <typename T, typename ... U>
+void disp(std::ostream& out, T arg, U ... args) {
+    disp(out, arg) ;
+    disp(out, args...);
+}
+
+/* fatal displays its args to std::cout, preceded with "FATAL " and followed
+ * by a newline.
+ * It then does some cleanup and exits
+ */
+template<typename ... T>
+void print_string(T ... args) {
+    disp(std::cout, args...);
+    std::cout << std::endl;
+}
+
+#define  DEBUG_PRINT(args...) print_string( "[DEBUG]: ", args)
+
+#else
+#define  DEBUG_PRINT(...)
+#endif
+
+
+
 #include <memory>
 
 namespace Visibility {
@@ -188,8 +229,8 @@ namespace Visibility {
     expand( const PolyLine& line, double distance, int pointsPerCircle  ) {
         boost::geometry::strategy::buffer::distance_symmetric<double> distance_strategy(distance);
         boost::geometry::strategy::buffer::join_round join_strategy(pointsPerCircle);
-        boost::geometry::strategy::buffer::end_flat end_strategy;
-        boost::geometry::strategy::buffer::point_square point_strategy;
+        boost::geometry::strategy::buffer::end_flat end_strategy; // (pointsPerCircle);
+        boost::geometry::strategy::buffer::point_circle point_strategy(pointsPerCircle);
         boost::geometry::strategy::buffer::side_straight side_strategy;
 
         // Create the buffer of a linestring
@@ -203,16 +244,16 @@ namespace Visibility {
 
 
     MultiPolygon
-    expand( const Polygon& line, double distance, int pointsPerCircle ) {
+    expand( const Polygon& poly, double distance, int pointsPerCircle ) {
         boost::geometry::strategy::buffer::distance_symmetric<double> distance_strategy(distance);
         boost::geometry::strategy::buffer::join_round join_strategy(pointsPerCircle);
-        boost::geometry::strategy::buffer::end_flat end_strategy;
-        boost::geometry::strategy::buffer::point_square point_strategy;
+        boost::geometry::strategy::buffer::end_round end_strategy(pointsPerCircle);
+        boost::geometry::strategy::buffer::point_circle point_strategy(pointsPerCircle);
         boost::geometry::strategy::buffer::side_straight side_strategy;
 
         // Create the buffer of a linestring
         MultiPolygon result;
-        boost::geometry::buffer(line, result,
+        boost::geometry::buffer(poly, result,
                                 distance_strategy, side_strategy,
                                 join_strategy, end_strategy, point_strategy);
         return result;
@@ -548,6 +589,165 @@ namespace Visibility {
         });
         return points;
     };
+
+    int
+    findIndex( const vector<decomp::Point>& pts, const decomp::Point& targetPt ) {
+        int i = 0;
+        for( auto const& pt : pts ) {
+            if( pt == targetPt ) {
+                return i;
+            }
+            i++;
+        }
+        return -1;
+    }
+
+    vector<Polygon>
+    decompose( const Polygon& polygon ) {
+        vector<decomp::Point> dPoints;
+        decomp::IndexList exteriorRing;
+        vector<decomp::IndexList> holes;
+        vector<Polygon> result;
+
+        if( !bg::is_simple( polygon ) ) {
+            return result;
+        }
+
+        // Add all the points from the exterior ring to point list
+        for( auto it = bg::exterior_ring(polygon).rbegin(); it != bg::exterior_ring(polygon).rend() - 1; it++ ) {
+            decomp::Point pt( (*it).x(), (*it).y() );
+            auto index = findIndex( dPoints, pt );
+            if( index == -1 ) {
+                dPoints.emplace_back( pt );
+                index = dPoints.size() - 1;
+            }
+            exteriorRing.emplace_back( index );
+        }
+
+        // Need to have at least 3 exterior points...
+        if( dPoints.size() < 3 ) {
+            return {polygon};
+        }
+
+        // Now all the interior rings
+        for( auto const& inner: bg::interior_rings(polygon)) {
+            decomp::IndexList hole;
+            for( auto it = inner.rbegin(); it != inner.rend() - 1; it++ ) {
+                decomp::Point pt( (*it).x(), (*it).y() );
+                auto index = findIndex( dPoints, pt );
+                if( index == -1 ) {
+                    dPoints.emplace_back( pt );
+                    index = dPoints.size() - 1;
+                }
+                hole.emplace_back( index );
+            }
+            holes.emplace_back( hole );
+        }
+
+
+        auto decomposition = decomp::decompose( dPoints, exteriorRing, holes );
+
+        // convert the resulting index lists back into polygons...
+        for( auto const& polyList : decomposition ) {
+            if( polyList.begin() != polyList.end() ) {
+                Polygon convexPoly;
+                for( auto it = polyList.begin(); it != polyList.end(); it++ ) {
+                    auto i = *it;
+                    addPoint(convexPoly, {dPoints[i][0], dPoints[i][1]});
+                }
+                // close the poly
+                auto i = *(polyList.begin());
+                addPoint(convexPoly, {dPoints[i][0], dPoints[i][1]});
+                result.emplace_back( convexPoly );
+            }
+        }
+
+        return result;
+    }
+
+    //
+    // Based on the algorithm published by Pirzadeh's 1999 thesis:
+    // @phdthesis{pirzadeh1999computational,
+    //   title={Computational geometry with the rotating calipers},
+    //   author={Pirzadeh, Hormoz},
+    //   year={1999},
+    //   school={McGill University}
+    // }
+    vector<pair<int,int>>
+    findAntipodals( const Polygon& poly ) {
+        auto const& points = bg::exterior_ring( poly );
+        vector<pair<int,int>> antipods;
+
+        auto n = points.size() - 1;  // skip the extra (closing) pt
+        if( n < 3 ) {
+            // Need to have at least three points to have anything useful
+            return {};
+        }
+
+        // Find the initial pair -- basically move around the polygon until the area of
+        // the triangle stops growing
+        auto pStart = 0;
+        auto p = n-1;
+        auto q = ( p + 1 ) % n;
+        
+        while( epsilonGreaterThan( area( points[p], points[(p+1)%n], points[(q+1)%n] ),
+                                   area( points[p], points[(p+1)%n], points[q] ) ) ) {
+            q = (q+1) % n;
+        }
+
+        auto qStart = q;
+        auto pEnd = n - 1;
+        while( q != pStart ) {
+            p = ( p + 1 ) % n;
+            antipods.emplace_back( p, q );
+            while( epsilonGreaterThan( area( points[p], points[(p+1)%n], points[(q+1)%n] ),
+                                       area( points[p], points[(p+1)%n], points[q] ) ) ) {
+                q = (q + 1) % n;
+                if( /*p == qStart || */ q == pStart ) {
+                    // all done here
+                    return antipods;
+                }
+                antipods.emplace_back( p, q );
+            }
+            if( epsilonEqual( area( points[p], points[(p+1)%n], points[(q+1)%n] ),
+                              area( points[p], points[(p+1)%n], points[q] ) ) ) {
+                if( p != qStart && q != pStart ) {
+                    antipods.emplace_back( p, (q+1)%n );
+                } else {
+                    // antipods.emplace_back( (p+1)%n, q );
+                }
+            }
+        }
+
+        return antipods;
+    }
+
+    vector<tuple<int, int, int, double>>
+    findHeights(const Polygon &poly) {
+        auto const &points = bg::exterior_ring(poly);
+        vector<tuple<int, int, int, double >> heights;
+
+        auto n = points.size() - 1;  // skip the extra (closing) pt
+        if (n < 3) {
+            // Need to have at least three points to have anything useful
+            return {};
+        }
+
+        auto p = 0;
+        auto q = p + 1;
+        while (p < n) {
+            auto currentArea = area(points[p], points[(p + 1) % n], points[q]);
+            while (epsilonGreaterThan(area(points[p], points[(p + 1) % n], points[(q + 1) % n]), currentArea)) {
+                q = (q + 1) % n;
+                currentArea = area(points[p], points[(p + 1) % n], points[q]);
+            }
+            auto t = make_tuple(p, p + 1, q, currentArea * 2.0 / bg::distance(points[p], points[p + 1]));
+            heights.emplace_back(t);
+            p++;
+        }
+        return heights;
+    }
+
 
 
 }
