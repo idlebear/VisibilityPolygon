@@ -21,8 +21,8 @@ add_subdirectory( thirdParty/decomp )
 ## Your package locations should be listed before other locations
 include_directories(
     include
-    ${EIGEN3_INCLUDE_DIRS}
-    ${BOOST_INCLUDE_DIRS}
+    ${Eigen3_INCLUDE_DIRS}
+    ${Boost_INCLUDE_DIRS}
     ${decomp_INCLUDE_DIRS}
 )
 
@@ -40,8 +40,8 @@ add_library(${PROJECT_NAME} SHARED
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(${PROJECT_NAME}
-    ${EIGEN3_LIBRARIES}
-    ${BOOST_LIBRARIES}
+    ${Eigen3_LIBRARIES}
+    ${Boost_LIBRARIES}
 )
 
 #############
