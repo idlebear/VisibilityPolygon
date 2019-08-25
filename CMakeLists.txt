@@ -8,6 +8,12 @@ add_compile_options(-std=c++11)
 # find_package(Boost REQUIRED COMPONENTS system)
 
 find_package(Eigen3 REQUIRED)
+
+
+# Avoid valgrind error due to overflow error, cf. https://bitbucket.org/ompl/ompl/issues/543
+add_compile_definitions(BOOST_MATH_NO_LONG_DOUBLE_MATH_FUNCTIONS)
+add_compile_definitions(BOOST_ALL_NO_LIB)
+
 find_package(Boost REQUIRED)
 
 find_path(decomp_INCLUDE_DIRS convex_decomposition.hpp thirdParty/decomp/source/decomp )
