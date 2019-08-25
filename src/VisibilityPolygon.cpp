@@ -741,8 +741,11 @@ namespace Visibility {
                 q = (q + 1) % n;
                 currentArea = area(points[p], points[(p + 1) % n], points[q]);
             }
-            auto t = make_tuple(p, p + 1, q, currentArea * 2.0 / bg::distance(points[p], points[p + 1]));
-            heights.emplace_back(t);
+            auto h = currentArea * 2.0 / bg::distance(points[p], points[p + 1]);
+            if( h > 0 ) {
+                auto t = make_tuple(p, p + 1, q, h );
+                heights.emplace_back(t);
+            }
             p++;
         }
         return heights;
