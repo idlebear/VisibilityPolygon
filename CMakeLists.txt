@@ -11,8 +11,8 @@ find_package(Eigen3 REQUIRED)
 
 
 # Avoid valgrind error due to overflow error, cf. https://bitbucket.org/ompl/ompl/issues/543
-add_compile_definitions(BOOST_MATH_NO_LONG_DOUBLE_MATH_FUNCTIONS)
-add_compile_definitions(BOOST_ALL_NO_LIB)
+add_definitions(-DBOOST_MATH_NO_LONG_DOUBLE_MATH_FUNCTIONS)
+add_definitions(-DBOOST_ALL_NO_LIB)
 
 find_package(Boost REQUIRED)
 
