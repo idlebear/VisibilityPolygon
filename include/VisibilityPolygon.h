@@ -117,6 +117,17 @@ namespace Visibility {
     };
 
 
+    // Menger Curvature: https://en.wikipedia.org/wiki/Menger_curvature
+    inline double
+    curvature( const Point& a, const Point& b, const Point& c ) {
+        auto A = area( a, b, c );
+        auto D = bg::distance( a, b ) * bg::distance( b, c ) * bg::distance( a, c );
+        if( D == 0 ) {
+            return 0;
+        }
+        return 4 * A / D;
+    }
+
 
     // Ref: https://en.wikipedia.org/wiki/Quickhull
     Polygon
