@@ -125,7 +125,12 @@ namespace Visibility {
         if( D == 0 ) {
             return 0;
         }
-        return 4 * A / D;
+        auto result = 4 * A / D;
+        if( result < VISIBILITY_POLYGON_EPSILON ) {
+            return 0;
+        }
+        return result;
+
     }
 
 
