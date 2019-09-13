@@ -6,6 +6,7 @@
 
 #include "../thirdParty/decomp/source/decomp/convex_decomposition.hpp"
 #include "../thirdParty/decomp/source/decomp/triangulation.hpp"
+#include "polyDecomp.h"
 
 #define DEBUG 1
 
@@ -601,6 +602,46 @@ namespace Visibility {
         }
         return -1;
     }
+
+
+    vector<Polygon>
+    alternateDecompose( const Polygon& polygon ) {
+
+        Polygon_Decomposition::Polygon target;
+
+        // Add all the points from the exterior ring to point list
+        for( auto it = bg::exterior_ring(polygon).rbegin(); it != bg::exterior_ring(polygon).rend() - 1; it++ ) {
+            Polygon_Decomposition::Point pt( (*it).x(), (*it).y() );
+
+            target.emplace_back( pt );
+        }
+
+        if( target.size() < 3 ) {
+            return {polygon};
+        }
+
+        vector<Polygon_Decomposition::Polygon> decomposition;
+        Polygon_Decomposition::decomposePoly( target, decomposition );
+
+        vector<Polygon> result;
+        // convert the resulting index lists back into polygons...
+        for( auto const& polyList : decomposition ) {
+            if( polyList.begin() != polyList.end() ) {
+                Polygon convexPoly;
+                for( auto it = polyList.begin(); it != polyList.end(); it++ ) {
+                    auto p = *it;
+                    addPoint(convexPoly, {p.x, p.y});
+                }
+                // close the poly
+                auto p = *(polyList.begin());
+                addPoint(convexPoly, {p.x, p.y});
+                result.emplace_back( convexPoly );
+            }
+        }
+
+        return result;
+    }
+
 
     vector<Polygon>
     decompose( const Polygon& polygon ) {

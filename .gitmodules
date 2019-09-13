@@ -1,3 +1,6 @@
 [submodule "thirdParty/decomp"]
 	path = thirdParty/decomp
 	url = git@github.com:idlebear/decomp.git
+[submodule "polyDecomp"]
+	path = thirdParty/polyDecomp
+	url = git@github.com:idlebear/polyDecomp.git

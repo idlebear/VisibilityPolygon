@@ -400,6 +400,9 @@ namespace Visibility {
     vector<Polygon>
     decompose( const Polygon& polygon );
 
+    vector<Polygon>
+    alternateDecompose( const Polygon& polygon );
+
     vector<pair<int,int>>
     findAntipodals( const Polygon& poly );
 
