@@ -46,7 +46,7 @@ The following functions should be useful:
 
 ~~~~
 #include <vector>
-#include "Visibility.h"
+#include "VisibilityPolygon.h"
 
 namespace V = Visibility;
 
