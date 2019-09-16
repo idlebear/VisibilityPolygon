@@ -50,18 +50,19 @@ The following functions should be useful:
 
 namespace V = Visibility;
 
-vector<V::Polygon> polygons = [];
-polygons.emplace_back({{
-    {-1,-1}, 
-    {501,-1},
-    {501,501},
-    {-1,501}
-}});
-polygons.emplace_back({{
-    {250,100},
-    {260,140},
-    {240,140}
-}});
+vector<V::Polygon> polygons {
+    {{
+        {-1,-1}, 
+        {501,-1},
+        {501,501},
+        {-1,501}
+    }},
+    {{
+        {250,100},
+        {260,140},
+        {240,140}
+    }},
+};
 
 auto segments = V::convertToSegments(polygons);
 segments = V::breakIntersections(segments);
