@@ -19,7 +19,7 @@ find_package(Boost REQUIRED)
 find_path(decomp_INCLUDE_DIRS convex_decomposition.hpp thirdParty/decomp/source/decomp )
 add_subdirectory( thirdParty/decomp )
 
-find_path(polyDecomp_INCLUDE_DIRS polyDecomp.h thirdParty/polyDecomp/include )
+find_path(poly_decomp_INCLUDE_DIRS polyDecomp.h thirdParty/polyDecomp/include )
 add_subdirectory( thirdParty/polyDecomp )
 
 
@@ -34,7 +34,7 @@ include_directories(
     ${EIGEN3_INCLUDE_DIRS}
     ${BOOST_INCLUDE_DIRS}
     ${decomp_INCLUDE_DIRS}
-    ${polyDecomp_INCLUDE_DIRS}
+    ${poly_decomp_INCLUDE_DIRS}
 )
 
 SET(visibility-polygon_LIBRARY_OUTPUT_DIRECTORY ${visibility-polygon_SOURCE_DIR}/lib CACHE PATH "Target for the libraries")
@@ -46,7 +46,7 @@ SET(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${visibility-polygon_RUNTIME_OUTPUT_DIRECTORY
 add_library(${PROJECT_NAME} SHARED
    src/VisibilityPolygon.cpp
     ${decomp_SOURCES}
-    ${polyDecomp_SOURCES}
+    ${poly_decomp_SOURCES}
 )
 
 
