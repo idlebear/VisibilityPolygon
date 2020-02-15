@@ -45,8 +45,8 @@ SET(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${visibility-polygon_RUNTIME_OUTPUT_DIRECTORY
 ## Declare a C++ library
 add_library(${PROJECT_NAME} SHARED
    src/VisibilityPolygon.cpp
-    ${decomp_SOURCES}
-    ${poly_decomp_SOURCES}
+   ${decomp_SOURCES}
+   ${poly_decomp_SOURCES}
 )
 
 

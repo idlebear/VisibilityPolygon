@@ -15,3 +15,5 @@ lib/
 cmake-build-release/
 
 \.vscode/
+
+CMakeFiles/
